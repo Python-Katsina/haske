@@ -1,60 +1,42 @@
-# Haske Framework .gitignore
+# Haske Framework - Specific .gitignore
+# Targets the exact structure shown in your project
 
-# Python
+# Python bytecode and cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
+
+# Rust build artifacts
+**/target/
+**/Cargo.lock
+
+# Python build and distribution
+build/
+dist/
 *.egg
-MANIFEST
-
-# Rust
-/target/
-**/*.rs.bk
-Cargo.lock
-
-# PyO3/maturin
-*.so
-*.dylib
-*.dll
-_haske_core*.so
-_haske_core*.dylib
-_haske_core*.dll
+*.whl
+*.tar.gz
 
 # Virtual environments
-.env
+.env/
 .venv/
-env/
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
 
-# OS
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -66,19 +48,12 @@ Thumbs.db
 # Logs
 *.log
 logs/
-*.logs
+.npm/
+.yarn/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-app.db
-test.db
-
-# Coverage
+# Coverage reports
 .coverage
 .coverage.*
-.coverage
 ,cover
 htmlcov/
 .coverage.xml
@@ -87,31 +62,82 @@ htmlcov/
 .pytest_cache/
 .tox/
 .nox/
+test-results/
+.junit.xml
 
-# Documentation
-docs/_build/
-docs/api/
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
 
-# Distribution
-dist/
-build/
-*.tar.gz
-*.whl
+# Maturin/PyO3 build artifacts
+_haske_core*.so
+_haske_core*.dylib
+_haske_core*.dll
+_haske_core*.pyd
+
+# Specific to your project structure
+/haske-core/target/          # Rust build directory
+/haske-python/build/         # Python build
+/haske-python/dist/          # Python dist
+/haske-python/*.egg-info/    # Egg info
+
+# Benchmark results
+/benchmarks/results/*.json
+/benchmarks/results/*.csv
+
+# Example apps
+/examples/*/__pycache__/
+/examples/*/.pytest_cache/
+/examples/*/instance/
+/examples/*/*.db
 
 # Environment variables
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Docker
+docker-compose.override.yml
 
-# macOS
-.DS_Store?
-.AppleDouble
-.LSOverride
+# Large files
+*.large
+*.h5
+*.hdf5
+
+# Compression files
+*.gz
+*.zip
+*.7z
+*.rar
+*.tar
+
+# Binary files (except allowed ones)
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.class
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# Backup files
+*.backup
+*.bak
+*.orig
+*.rej
+
+# Editor files
+*~
+*.swp
+*.swo
 
 # Windows
 [Tt]humbs.db
@@ -122,51 +148,16 @@ ehthumbs_vista.db
 # Linux
 *~
 
-# Backup files
-*.backup
-*.bak
-*.tmp
+# macOS
+.AppleDouble
+.LSOverride
 
-# Temporary files
-temp/
-tmp/
+# Documentation builds
+docs/_build/
+site/
 
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Specific to Haske
-/haske-core/target/          # Rust build artifacts
-/haske-python/build/         # Python build artifacts
-/haske-python/dist/          # Python distribution packages
-/haske-python/*.egg-info/    # Python egg metadata
-
-# Benchmark results
-/benchmarks/results/
-*.json
-
-# Example app artifacts
-/examples/*/__pycache__/
-/examples/*/.pytest_cache/
-/examples/*/.coverage
-
-# Development artifacts
-.devcontainer/
-.cache/
-.rustup/
-.cargo/
-
-# Docker
-docker-compose.override.yml
-
-# Local configuration
-local.settings.json
-appsettings.local.json
+# Jupyter
+.ipynb_checkpoints
 
 # Secret files
 secrets.yml
@@ -176,32 +167,7 @@ config/secrets.yml
 *.cert
 *.crt
 
-# Large files
-*.large
-*.h5
-*.hdf5
-*.bin
-
-# Compression
-*.gz
-*.zip
-*.7z
-*.rar
-*.tar
-
-# Binary files
-*.exe
-*.dll
-*.obj
-*.o
-*.a
-*.lib
-*.so
-*.dylib
-*.class
-*.jar
-
-# Media files
+# Media files (shouldn't be in repo)
 *.mp4
 *.avi
 *.mov
@@ -226,7 +192,7 @@ config/secrets.yml
 # Keep these patterns but allow empty directories
 !.gitkeep
 
-# Exceptions (don't ignore these)
+# EXCEPTIONS - Files that should be tracked
 !README.md
 !LICENSE
 !CHANGELOG.md
@@ -235,5 +201,46 @@ config/secrets.yml
 !setup.py
 !setup.cfg
 !requirements.txt
+!requirements-dev.txt
 !Cargo.toml
 !rust-toolchain.toml
+!maturin.toml
+
+# Exception for specific config files
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+
+# Exception for important directories (empty ok)
+!examples/
+!examples/**/
+!benchmarks/
+!benchmarks/**/
+!haske-core/
+!haske-core/**/
+!haske-python/
+!haske-python/**/
+!tests/
+!tests/**/
+
+# Exception for source files
+!*.rs
+!*.py
+!*.toml
+!*.yml
+!*.yaml
+!*.md
+!*.txt
+!*.html
+!*.css
+!*.js
+
+# Exception for templates and static files
+!**/templates/
+!**/templates/**/*.html
+!**/static/
+!**/static/**/*.css
+!**/static/**/*.js
+!**/static/**/*.png
+!**/static/**/*.jpg
+!**/static/**/*.ico
