@@ -1,0 +1,12 @@
+[package]
+name = "haske-python"
+version = "0.3.0"
+edition = "2021"
+
+[lib]
+name = "_haske_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module", "auto-initialize"] }
+haske-core = { path = "../haske-core" }  # depends on your Rust core

@@ -1,0 +1,39 @@
+[package]
+name = "haske-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "_haske_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21", features = ["extension-module"] }
+regex = "1.7.0"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
+base64 = "0.21.0"
+hmac = "0.12.1"
+sha2 = "0.10.6"
+pbkdf2 = "0.11.0"
+rand = "0.8.5"
+flate2 = "1.0.25"
+brotli = "3.3.4"
+zstd = "0.12.0"
+bytes = "1.4.0"
+parking_lot = "0.12.1"
+constant_time_eq = "0.2.5"
+moka = "0.10.0"  # Added moka dependency
+sha1 = "0.10.5"  # Added sha1 dependency
+
+# Optional SIMD support
+[features]
+default = []
+simd = ["simd-json"]
+
+[dependencies.simd-json]
+version = "0.9.0"
+optional = true
+
+[build-dependencies]
+pyo3-build-config = "0.18.0"
