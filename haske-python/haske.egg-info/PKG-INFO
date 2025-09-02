@@ -1,0 +1,43 @@
+Metadata-Version: 2.4
+Name: haske
+Version: 0.1.0
+Summary: A high-performance Python web framework with Rust extensions
+Author-email: Your Name <your.email@example.com>
+License: MIT License
+        
+Project-URL: Homepage, https://github.com/yourusername/haske
+Project-URL: Documentation, https://haske.readthedocs.io
+Project-URL: Repository, https://github.com/yourusername/haske
+Project-URL: Changelog, https://github.com/yourusername/haske/releases
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Rust
+Classifier: Topic :: Internet :: WWW/HTTP :: HTTP Servers
+Classifier: Topic :: Software Development :: Libraries :: Application Frameworks
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: starlette>=0.27.0
+Requires-Dist: uvicorn>=0.20.0
+Requires-Dist: jinja2>=3.0.0
+Requires-Dist: sqlalchemy>=1.4.0
+Requires-Dist: typer>=0.9.0
+Requires-Dist: python-multipart>=0.0.5
+Requires-Dist: httpx>=0.24.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.20.0; extra == "dev"
+Requires-Dist: black>=22.0.0; extra == "dev"
+Requires-Dist: mypy>=0.991; extra == "dev"
+Requires-Dist: ruff>=0.0.260; extra == "dev"
+Provides-Extra: all
+Requires-Dist: haske[dev]; extra == "all"
+Dynamic: license-file
+
+# Haske Python Package

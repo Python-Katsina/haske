@@ -1,0 +1,10 @@
+C:\Users\Yusee Habibu\PythonProjects\Libs\haske\haske-core\target\release\deps\memoffset-667ec8a12bc7ee1c.d: C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\lib.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\raw_field.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\offset_of.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\span_of.rs
+
+C:\Users\Yusee Habibu\PythonProjects\Libs\haske\haske-core\target\release\deps\libmemoffset-667ec8a12bc7ee1c.rlib: C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\lib.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\raw_field.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\offset_of.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\span_of.rs
+
+C:\Users\Yusee Habibu\PythonProjects\Libs\haske\haske-core\target\release\deps\libmemoffset-667ec8a12bc7ee1c.rmeta: C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\lib.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\raw_field.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\offset_of.rs C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\span_of.rs
+
+C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\lib.rs:
+C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\raw_field.rs:
+C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\offset_of.rs:
+C:\Users\Yusee\ Habibu\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\memoffset-0.8.0\src\span_of.rs:
