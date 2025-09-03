@@ -1,6 +1,6 @@
 # Haske Developer Guide
 
-> Draft v0.1 — generated from the current repository structure and README. Please leave comments wherever the API differs from the code so we can align the docs.
+> Haske v0.1.0
 
 ---
 
@@ -128,7 +128,7 @@ python your_app.py
 ```python
 @app.route("/items/{item_id}")
 async def get_item(request: Request):
-    item_id = request.get_path_param("item_id")
+    item_id = request.path_params("item_id")
     return {"id": int(item_id)}
 ```
 
