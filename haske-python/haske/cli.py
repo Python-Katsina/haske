@@ -13,6 +13,8 @@ from pathlib import Path
 import shutil
 from .app import Haske
 
+from .static import create_frontend_config, FrontendManager
+
 cli = typer.Typer()
 
 @cli.command()
@@ -171,6 +173,75 @@ def check():
         typer.echo("⚠ Static directory missing")
     
     typer.echo("✓ Check complete")
+
+
+@cli.command()
+def setup_frontend(
+    framework: str = typer.Option("react", help="Frontend framework: react, vue, nextjs, angular, svelte"),
+    mode: str = typer.Option("production", help="Mode: production or development"),
+    build_dir: str = typer.Option(None, help="Custom build directory"),
+    dev_server: str = typer.Option(None, help="Development server URL")
+):
+    """
+    Setup frontend serving for Haske application.
+    """
+    config = create_frontend_config(framework)
+    
+    if build_dir:
+        config["build_dir"] = build_dir
+    if dev_server:
+        config["dev_server"] = dev_server
+    
+    # Create or update app configuration
+    config_path = Path("haske.config.json")
+    if config_path.exists():
+        with open(config_path, "r") as f:
+            existing_config = json.load(f)
+    else:
+        existing_config = {}
+    
+    existing_config["frontend"] = config
+    existing_config["frontend_mode"] = mode
+    
+    with open(config_path, "w") as f:
+        json.dump(existing_config, f, indent=2)
+    
+    typer.echo(f"✓ Frontend setup for {framework} in {mode} mode")
+    typer.echo(f"Build directory: {config['build_dir']}")
+    if mode == "development":
+        typer.echo(f"Dev server: {config['dev_server']}")
+
+@cli.command()
+def build_frontend(
+    framework: str = typer.Option("react", help="Frontend framework"),
+    output_dir: str = typer.Option(None, help="Output directory")
+):
+    """
+    Build frontend for production (if build commands are available).
+    """
+    build_commands = {
+        "react": "npm run build",
+        "vue": "npm run build",
+        "nextjs": "npm run build",
+        "angular": "ng build --prod",
+        "svelte": "npm run build"
+    }
+    
+    if framework not in build_commands:
+        typer.echo(f"Unknown framework: {framework}")
+        raise typer.Exit(1)
+    
+    command = build_commands[framework]
+    if output_dir:
+        command += f" --output-path {output_dir}"
+    
+    typer.echo(f"Building {framework} frontend...")
+    typer.echo(f"Command: {command}")
+    
+    # In a real implementation, we would run the command
+    # For now, just show what would happen
+    typer.echo("✓ Frontend build completed (simulated)")
+    
 
 if __name__ == "__main__":
     cli()
