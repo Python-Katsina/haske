@@ -1,4 +1,11 @@
-# haske/app.py - Updated run method
+# haske/app.py
+"""
+Main application class for Haske web framework.
+
+This module provides the core Haske application class that serves as the
+entry point for creating web applications with Rust-accelerated performance.
+"""
+
 from typing import Any, Callable, Awaitable, Dict, List, Optional
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, HTMLResponse, Response
@@ -14,7 +21,27 @@ import inspect
 import sys
 
 class Haske:
+    """
+    Main Haske application class.
+    
+    This class represents a Haske web application and provides methods for
+    routing, middleware, and application management.
+    
+    Attributes:
+        name (str): Application name
+        routes (list): Registered routes
+        middleware_stack (list): Registered middleware
+        starlette_app (Starlette): Internal Starlette application
+        start_time (float): Application start time for uptime calculation
+    """
+    
     def __init__(self, name: str = "haske") -> None:
+        """
+        Initialize a new Haske application.
+        
+        Args:
+            name: Application name, defaults to "haske"
+        """
         self.name = name
         self.routes = []
         self.middleware_stack = []
@@ -27,10 +54,19 @@ class Haske:
     def route(self, path: str, methods: List[str] = None, name: str = None) -> Callable:
         """
         Decorator to register a route handler.
+        
+        Args:
+            path: URL path pattern (supports path parameters)
+            methods: HTTP methods to handle, defaults to ["GET"]
+            name: Route name for reverse URL lookup
+            
+        Returns:
+            Callable: Decorator function
+            
         Example:
-            @app.route("/", methods=["GET"])
-            async def homepage(request):
-                return {"message": "Hello"}
+            @app.route("/users/:id", methods=["GET"])
+            async def get_user(request: Request):
+                return {"user": await get_user_by_id(request.path_params["id"])}
         """
         methods = methods or ["GET"]
         
@@ -47,21 +83,55 @@ class Haske:
 
     def middleware(self, middleware_cls, **options):
         """
-        Register middleware. Example:
+        Register middleware.
+        
+        Args:
+            middleware_cls: Middleware class
+            **options: Middleware configuration options
+            
+        Example:
             app.middleware(CORSMiddleware, allow_origins=["*"])
         """
         self.middleware_stack.append(StarletteMiddleware(middleware_cls, **options))
 
     def mount(self, path: str, app: Any, name: str = None):
-        """Mount a sub-application"""
+        """
+        Mount a sub-application.
+        
+        Args:
+            path: Mount path
+            app: Sub-application instance
+            name: Mount name
+        """
         self.routes.append(Mount(path, app=app, name=name))
 
     def static(self, path: str, directory: str, name: str = None):
-        """Serve static files from a directory"""
+        """
+        Serve static files from a directory.
+        
+        Args:
+            path: URL path prefix
+            directory: Directory path containing static files
+            name: Static files mount name
+        """
         self.routes.append(Mount(path, app=StaticFiles(directory=directory), name=name))
 
     def _convert_to_response(self, result: Any) -> Response:
-        """Convert handler result into Starlette Response"""
+        """
+        Convert handler result into Starlette Response.
+        
+        Args:
+            result: Handler return value
+            
+        Returns:
+            Response: Appropriate Starlette response
+            
+        Converts:
+            - dict/list -> JSONResponse
+            - str -> HTMLResponse
+            - Response -> unchanged
+            - other -> plain text Response
+        """
         if isinstance(result, Response):
             return result
         if isinstance(result, dict):
@@ -73,7 +143,12 @@ class Haske:
         return Response(str(result))
 
     def build(self) -> Starlette:
-        """Build the internal Starlette app"""
+        """
+        Build the internal Starlette app.
+        
+        Returns:
+            Starlette: Configured Starlette application instance
+        """
         self.starlette_app = Starlette(
             debug=os.getenv("HASKE_DEBUG", "False").lower() == "true",
             routes=self.routes,
@@ -83,7 +158,14 @@ class Haske:
 
     async def __call__(self, scope, receive, send) -> None:
         """
-        Make Haske ASGI-compatible so `uvicorn.run(app)` works directly.
+        ASGI application interface.
+        
+        Makes Haske ASGI-compatible so it can be used with any ASGI server.
+        
+        Args:
+            scope: ASGI scope
+            receive: ASGI receive function
+            send: ASGI send function
         """
         if self.starlette_app is None:
             self.build()
@@ -91,11 +173,21 @@ class Haske:
         await self.starlette_app(scope, receive, send)
 
     def get_uptime(self) -> float:
-        """Get application uptime in seconds"""
+        """
+        Get application uptime in seconds.
+        
+        Returns:
+            float: Uptime in seconds
+        """
         return time.time() - self.start_time
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get application statistics"""
+        """
+        Get application statistics.
+        
+        Returns:
+            dict: Application statistics including uptime, route count, etc.
+        """
         return {
             "uptime": self.get_uptime(),
             "routes": len(self.routes),
@@ -107,10 +199,13 @@ class Haske:
         Run the application using uvicorn.
         
         Args:
-            host: Host to bind to
-            port: Port to listen on
-            debug: Enable debug mode
+            host: Host to bind to, defaults to "0.0.0.0"
+            port: Port to listen on, defaults to 8000
+            debug: Enable debug mode, defaults to False
             **kwargs: Additional arguments to pass to uvicorn
+            
+        Note:
+            In debug mode, uvicorn will automatically reload on code changes.
         """
         if self.starlette_app is None:
             self.build()
