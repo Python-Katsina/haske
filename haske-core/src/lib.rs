@@ -10,44 +10,42 @@ mod cache;
 mod compress;
 mod ws;
 
-/// Python module `_haske_core`
-/// Register functions and classes from submodules.
 #[pymodule]
 fn _haske_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Classes
+    // Register classes
     m.add_class::<router::HaskeApp>()?;
     m.add_class::<cache::HaskeCache>()?;
     m.add_class::<ws::WebSocketFrame>()?;
 
-    // path
+    // Path functions
     m.add_function(wrap_pyfunction!(path::compile_path, m)?)?;
     m.add_function(wrap_pyfunction!(path::match_path, m)?)?;
 
-    // json
+    // JSON functions
     m.add_function(wrap_pyfunction!(json::json_loads_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(json::json_dumps_obj, m)?)?;
     m.add_function(wrap_pyfunction!(json::json_is_valid, m)?)?;
     m.add_function(wrap_pyfunction!(json::json_extract_field, m)?)?;
 
-    // template
+    // Template functions
     m.add_function(wrap_pyfunction!(template::render_template, m)?)?;
     m.add_function(wrap_pyfunction!(template::precompile_template, m)?)?;
 
-    // crypto
+    // Crypto functions
     m.add_function(wrap_pyfunction!(crypto::sign_cookie, m)?)?;
     m.add_function(wrap_pyfunction!(crypto::verify_cookie, m)?)?;
     m.add_function(wrap_pyfunction!(crypto::hash_password, m)?)?;
     m.add_function(wrap_pyfunction!(crypto::verify_password, m)?)?;
     m.add_function(wrap_pyfunction!(crypto::generate_random_bytes, m)?)?;
 
-    // orm
+    // ORM functions
     m.add_function(wrap_pyfunction!(orm::prepare_query, m)?)?;
     m.add_function(wrap_pyfunction!(orm::prepare_queries, m)?)?;
 
-    // cache
+    // Cache functions
     m.add_function(wrap_pyfunction!(cache::create_cache, m)?)?;
 
-    // compression
+    // Compression functions
     m.add_function(wrap_pyfunction!(compress::gzip_compress, m)?)?;
     m.add_function(wrap_pyfunction!(compress::gzip_decompress, m)?)?;
     m.add_function(wrap_pyfunction!(compress::zstd_compress, m)?)?;
@@ -55,7 +53,7 @@ fn _haske_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compress::brotli_compress, m)?)?;
     m.add_function(wrap_pyfunction!(compress::brotli_decompress, m)?)?;
 
-    // websocket
+    // WebSocket functions
     m.add_function(wrap_pyfunction!(ws::websocket_accept_key, m)?)?;
 
     m.add("__doc__", "Haske core extension: fast routing, json, templates, crypto, orm helpers.")?;

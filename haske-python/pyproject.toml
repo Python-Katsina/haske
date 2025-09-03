@@ -54,7 +54,7 @@ Repository = "https://github.com/yourusername/haske"
 Changelog = "https://github.com/yourusername/haske/releases"
 
 [tool.maturin]
-features = ["simd"]
+features = ["simd", "extension-module"]
 
 [tool.ruff]
 line-length = 88
@@ -64,3 +64,7 @@ ignore = ["E501", "E203"]
 [tool.black]
 line-length = 88
 target-version = ['py38']
+
+rust = [
+    "maturin >=0.14,<0.15",
+]
