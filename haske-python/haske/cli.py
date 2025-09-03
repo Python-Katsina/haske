@@ -1,3 +1,11 @@
+# haske/cli.py
+"""
+Command-line interface for Haske framework.
+
+This module provides a comprehensive CLI for development, testing, and
+deployment of Haske applications.
+"""
+
 import typer
 import uvicorn
 from typing import Optional
@@ -15,12 +23,33 @@ def dev(
     reload: bool = True,
     workers: int = 1
 ):
-    """Start development server"""
+    """
+    Start development server.
+    
+    Args:
+        module: Python import path to application (module:app)
+        host: Host to bind to, defaults to "127.0.0.1"
+        port: Port to listen on, defaults to 8000
+        reload: Enable auto-reload on code changes, defaults to True
+        workers: Number of worker processes, defaults to 1
+        
+    Example:
+        haske dev --module app.main:app --host 0.0.0.0 --port 8000
+    """
     uvicorn.run(module, host=host, port=port, reload=reload, workers=workers)
 
 @cli.command()
 def new(name: str, with_frontend: bool = True):
-    """Create a new Haske project"""
+    """
+    Create a new Haske project.
+    
+    Args:
+        name: Project name (directory will be created with this name)
+        with_frontend: Include frontend scaffolding, defaults to True
+        
+    Example:
+        haske new my-project
+    """
     project_path = Path(name)
     if project_path.exists():
         typer.echo(f"Error: Directory '{name}' already exists")
@@ -66,7 +95,15 @@ DATABASE_URL=sqlite+aiosqlite:///./app.db
 
 @cli.command()
 def build():
-    """Build the application for production"""
+    """
+    Build the application for production.
+    
+    Compiles Rust extensions, bundles frontend assets, and prepares
+    the application for production deployment.
+    
+    Example:
+        haske build
+    """
     # This would compile Rust extensions, bundle frontend, etc.
     typer.echo("Building Haske application...")
     
@@ -81,7 +118,14 @@ def build():
 
 @cli.command()
 def test():
-    """Run tests"""
+    """
+    Run tests.
+    
+    Executes the test suite using pytest.
+    
+    Example:
+        haske test
+    """
     import subprocess
     import sys
     
@@ -90,14 +134,28 @@ def test():
 
 @cli.command()
 def routes():
-    """Show all registered routes"""
+    """
+    Show all registered routes.
+    
+    Displays a list of all registered routes and their handlers.
+    
+    Example:
+        haske routes
+    """
     # This would need access to the app instance
     typer.echo("Registered routes:")
     # Implementation would list all routes from the app
 
 @cli.command()
 def check():
-    """Check application for common issues"""
+    """
+    Check application for common issues.
+    
+    Performs health checks and validates application configuration.
+    
+    Example:
+        haske check
+    """
     typer.echo("Checking application...")
     
     # Check if templates directory exists

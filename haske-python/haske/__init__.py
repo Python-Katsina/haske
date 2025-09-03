@@ -1,3 +1,34 @@
+# haske/__init__.py
+"""
+Haske - High-performance Python web framework with Rust acceleration.
+
+This package provides a modern, async-first web framework built on Starlette
+with Rust-powered performance optimizations for critical paths.
+
+Modules:
+    app: Main application class and core functionality
+    request: Enhanced request handling with Rust acceleration
+    response: Comprehensive response types and utilities
+    templates: Template rendering with Jinja2 and Rust optimizations
+    orm: Database ORM with async support
+    auth: Authentication and authorization utilities
+    exceptions: Custom exception types and error handling
+    middleware: Middleware factories and utilities
+    admin: Admin interface generation
+    routing: Route handling and path parameter conversion
+    cli: Command-line interface for development and deployment
+
+Key Features:
+    - Rust-accelerated JSON parsing, routing, and templating
+    - Async/await support throughout
+    - Type annotations and validation
+    - Comprehensive authentication system
+    - Database ORM with multiple backend support
+    - Admin interface generation
+    - Built-in CLI tools
+    - Production-ready deployment options
+"""
+
 from .app import Haske
 from .request import Request
 from .response import Response, JSONResponse, HTMLResponse, RedirectResponse, StreamingResponse, FileResponse, APIResponse

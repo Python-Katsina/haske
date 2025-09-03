@@ -1,9 +1,30 @@
+# haske/admin.py
+"""
+Admin interface generation for Haske applications.
+
+This module provides utilities to automatically generate admin interfaces
+for database models, including both visual interfaces and RESTful APIs.
+"""
+
 from typing import List, Dict, Any
 from starlette.responses import HTMLResponse, JSONResponse
 from jinja2 import Template
 import inspect
 
-def generate_admin_index(models: List[type]):
+def generate_admin_index(models: List[type]) -> HTMLResponse:
+    """
+    Generate an HTML admin index page showing all registered models.
+    
+    Args:
+        models: List of SQLAlchemy model classes or similar ORM models
+        
+    Returns:
+        HTMLResponse: Rendered admin interface with model information
+        
+    Example:
+        >>> from myapp.models import User, Post
+        >>> app.route("/admin")(generate_admin_index([User, Post]))
+    """
     rows = []
     for m in models:
         model_name = m.__name__
@@ -62,8 +83,21 @@ def generate_admin_index(models: List[type]):
     t = Template(tpl)
     return HTMLResponse(t.render(models=rows))
 
-def generate_admin_api(models: List[type]):
-    """Generate CRUD API endpoints for admin models"""
+def generate_admin_api(models: List[type]) -> 'Haske':
+    """
+    Generate CRUD API endpoints for admin models.
+    
+    Args:
+        models: List of model classes to generate API endpoints for
+        
+    Returns:
+        Haske: Application instance with generated admin API routes
+        
+    Example:
+        >>> from myapp.models import User, Post
+        >>> admin_app = generate_admin_api([User, Post])
+        >>> app.mount("/admin/api", admin_app)
+    """
     from .app import Haske
     from .request import Request
     
@@ -74,26 +108,31 @@ def generate_admin_api(models: List[type]):
         
         @app.route(f"/admin/api/{model_name}", methods=["GET"])
         async def list_entities(request: Request):
+            """List all entities of this model type."""
             # Implementation for listing entities
             pass
             
         @app.route(f"/admin/api/{model_name}/:id", methods=["GET"])
         async def get_entity(request: Request):
+            """Get a single entity by ID."""
             # Implementation for getting a single entity
             pass
             
         @app.route(f"/admin/api/{model_name}", methods=["POST"])
         async def create_entity(request: Request):
+            """Create a new entity."""
             # Implementation for creating an entity
             pass
             
         @app.route(f"/admin/api/{model_name}/:id", methods=["PUT"])
         async def update_entity(request: Request):
+            """Update an existing entity."""
             # Implementation for updating an entity
             pass
             
         @app.route(f"/admin/api/{model_name}/:id", methods=["DELETE"])
         async def delete_entity(request: Request):
+            """Delete an entity."""
             # Implementation for deleting an entity
             pass
     

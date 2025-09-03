@@ -112,15 +112,15 @@ class CustomDevelop(develop):
 
 # Check if we can import setuptools_rust (will fail if Rust is not available)
 try:
-    from setuptools_rust import RustExtension
+    from setuptools_rust import RustExtension, Binding
     
     rust_extensions = [
         RustExtension(
             "_haske_core",
             path="../haske-core/Cargo.toml",
             debug=False,
-            binding=pyo3,
-            strip=not debug,
+            binding=Binding.PyO3,
+            strip=True,
         )
     ]
     
