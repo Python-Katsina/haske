@@ -148,7 +148,7 @@ docker-compose.override.yml
 
 # Keep directory structures but ignore their contents
 !examples/
-examples/*/
+# examples/*/
 !benchmarks/
 benchmarks/*/
 !haske-core/
