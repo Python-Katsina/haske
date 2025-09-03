@@ -18,12 +18,12 @@ async def headers_endpoint(request: Request):
     user_agent = request.headers.get("user-agent", "unknown")
     return {"user-agent": user_agent}
 
-@app.route("/post_small", methods=["POST", "PUT"])
+@app.route("/post_small", methods=["POST", "GET"])
 async def post_small(request: Request):
     data = await request.json()
     return {"received": data}
 
-@app.route("/post_large", methods=["POST", "PUT"])
+@app.route("/post_large", methods=["POST", "GET"])
 async def post_large(request: Request):
     data = await request.json()
     return {"size": len(json.dumps(data))}

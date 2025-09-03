@@ -14,6 +14,8 @@ from starlette.middleware import Middleware as StarletteMiddleware
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.middleware.gzip import GZipMiddleware
+
+from .static import FrontendManager, create_frontend_config
 import os
 import time
 import uvicorn
@@ -47,6 +49,9 @@ class Haske:
         self.middleware_stack = []
         self.starlette_app: Optional[Starlette] = None
         self.start_time = time.time()
+
+        self.frontend_manager = None
+        self.frontend_config = None
         
         # Default middleware
         self.middleware(GZipMiddleware, minimum_size=500)
@@ -80,6 +85,48 @@ class Haske:
             
             return func
         return decorator
+    
+    def setup_frontend(self, 
+                      framework: str = "react", 
+                      mode: str = "production",
+                      config: Optional[Dict] = None):
+        """
+        Setup frontend serving for React, Vue, Next.js, etc.
+        
+        Args:
+            framework: Frontend framework ("react", "vue", "nextjs", etc.)
+            mode: "production" or "development"
+            config: Custom frontend configuration
+            
+        Example:
+            app.setup_frontend("react", "production")
+        """
+        self.frontend_config = config or create_frontend_config(framework)
+        self.frontend_manager = FrontendManager(self, self.frontend_config)
+        self.frontend_manager.setup(mode)
+    
+    def serve_frontend(self, 
+                      directory: str = "./frontend/build",
+                      spa_mode: bool = True,
+                      development_mode: bool = False):
+        """
+        Quick setup for frontend serving.
+        
+        Args:
+            directory: Frontend build directory
+            spa_mode: Enable SPA routing
+            development_mode: Development mode
+            
+        Example:
+            app.serve_frontend("./my-react-app/build")
+        """
+        from .static import FrontendServer
+        frontend_server = FrontendServer(
+            directory=directory,
+            spa_mode=spa_mode,
+            development_mode=development_mode
+        )
+        frontend_server.setup_middleware(self)
 
     def middleware(self, middleware_cls, **options):
         """
