@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Yusee Habibu", email = "yusee201520@gmail.com"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -48,10 +48,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/haske"
+Homepage = "https://github.com/Python-Katsina/haske"
 Documentation = "https://haske.readthedocs.io"
-Repository = "https://github.com/yourusername/haske"
-Changelog = "https://github.com/yourusername/haske/releases"
+Repository = "https://github.com/Python-Katsina/haske"
+Changelog = "https://github.com/Python-Katsina/haske/releases"
 
 [tool.maturin]
 features = ["simd", "extension-module"]
