@@ -105,7 +105,7 @@ haske check
 
 # 🔧 Configuration
 Environment Variables
-bash
+```bash
 
 # Debug mode
 HASKE_DEBUG=True
@@ -118,7 +118,7 @@ SECRET_KEY=your-secret-key-here
 
 # Disable Rust extensions (fallback to Python)
 HASKE_NO_RUST=1
-
+```
 # Project Structure
 ```text
 
