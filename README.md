@@ -37,9 +37,11 @@ pip install .
 pip install -e .
 
 Manual Rust Installation (Optional)
+```
 
-If you prefer to install Rust manually:
-bash
+# If you prefer to install Rust manually:
+
+```bash
 
 # Install Rust via rustup
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -66,9 +68,10 @@ async def greet_user(request: Request):
 
 if __name__ == "__main__":
     app.run(debug=True)
+```
+# Run Your Application
 
-Run Your Application
-bash
+```bash
 
 # Using the built-in CLI
 haske dev --module your_app:app --host 0.0.0.0 --port 8000
@@ -98,8 +101,9 @@ haske routes
 
 # Check application health
 haske check
+```
 
-🔧 Configuration
+# 🔧 Configuration
 Environment Variables
 bash
 
@@ -115,8 +119,8 @@ SECRET_KEY=your-secret-key-here
 # Disable Rust extensions (fallback to Python)
 HASKE_NO_RUST=1
 
-Project Structure
-text
+# Project Structure
+```text
 
 my-project/
 ├── app/
@@ -129,8 +133,8 @@ my-project/
 ├── tests/               # Test files
 ├── requirements.txt     # Python dependencies
 └── .env                 # Environment variables
-
-⚡ Performance Features
+```
+# ⚡ Performance Features
 Rust-Powered Optimizations
 
 Haske uses Rust extensions for critical performance paths:
@@ -145,14 +149,15 @@ Haske uses Rust extensions for critical performance paths:
 
     Compression: Efficient gzip/brotli/zstd support
 
-Benchmark Comparison
+# Benchmark Comparison
 Operation	Haske (Rust)	Pure Python	Improvement
 JSON Parse	0.5ms	2.1ms	4.2x
 Template Render	1.2ms	4.8ms	4.0x
 Route Matching	0.1ms	0.8ms	8.0x
 🗄️ Database Support
 
-Haske includes built-in ORM support with SQLAlchemy:
+# Haske includes built-in ORM support with SQLAlchemy:
+```bash
 python
 
 from haske.orm import Database, Model
@@ -181,8 +186,9 @@ Supported databases:
     MySQL (aiomysql)
 
     SQLite (aiosqlite)
-
-🔐 Authentication & Security
+```
+# 🔐 Authentication & Security
+```bash
 python
 
 from haske.auth import AuthManager
@@ -203,8 +209,9 @@ async def login(request: Request):
 @auth.login_required
 async def protected_route(request: Request):
     return {"user": request.user}
-
-📊 Monitoring & Metrics
+```
+# 📊 Monitoring & Metrics
+```bash
 python
 
 from prometheus_client import Counter
@@ -216,9 +223,10 @@ async def metrics_middleware(request, call_next):
     REQUEST_COUNT.inc()
     response = await call_next(request)
     return response
-
-🚀 Deployment
+```
+# 🚀 Deployment
 Docker Deployment
+```bash
 dockerfile
 
 FROM python:3.11-slim
@@ -233,23 +241,25 @@ RUN pip install -r requirements.txt
 
 EXPOSE 8000
 CMD ["haske", "dev", "--module", "app.main:app", "--host", "0.0.0.0"]
+```
+# Production Deployment
 
-Production Deployment
-bash
+```bash
 
 # Build optimized version
 haske build
 
 # Use production server
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-
-🤝 Contributing
+```
+# 🤝 Contributing
 
 We welcome contributions! Please see our Contributing Guide for details.
 Development Setup
 bash
 
 # Clone and setup
+```bash
 git clone https://github.com/your-org/haske.git
 cd haske
 
@@ -261,11 +271,11 @@ pytest
 
 # Build Rust extensions
 maturin develop
-
-📄 License
+```
+# 📄 License
 
 Haske is licensed under the MIT License. See LICENSE for details.
-🆘 Support
+# 🆘 Support
 
     📖 Documentation
 
@@ -275,7 +285,7 @@ Haske is licensed under the MIT License. See LICENSE for details.
 
     📧 Email Support
 
-🏆 Acknowledgments
+# 🏆 Acknowledgments
 
     Built on Starlette and Uvicorn
 
@@ -283,8 +293,9 @@ Haske is licensed under the MIT License. See LICENSE for details.
 
     Inspired by FastAPI and Django
 
-🔧 Advanced Usage
+# 🔧 Advanced Usage
 Custom Middleware
+```bash
 python
 
 from haske.middleware import Middleware, RateLimitMiddlewareFactory
@@ -311,8 +322,10 @@ async def profile(request: Request):
     user_data = await get_user_data(request)
     content = await render_template_async("profile.html", user=user_data)
     return HTMLResponse(content)
+```
 
-Error Handling
+# Error Handling
+```bash
 python
 
 from haske.exceptions import ValidationError, NotFoundError
@@ -336,8 +349,10 @@ async def validation_exception_handler(request, exc):
 @app.exception_handler(NotFoundError)
 async def not_found_handler(request, exc):
     return not_found_response(exc.detail)
+```
 
-WebSocket Support
+# WebSocket Support
+```bash
 python
 
 from haske import WebSocket
@@ -371,8 +386,9 @@ async def process_data_async(data):
     # Long-running processing
     await asyncio.sleep(5)
     print(f"Processed: {data}")
+```
 
-📚 API Reference
+# 📚 API Reference
 Core Classes
 
     Haske: Main application class
@@ -405,15 +421,16 @@ Utilities
 
     generate_csrf_token(): CSRF protection
 
-🔍 Debugging
+# 🔍 Debugging
 
 Enable debug mode for detailed error messages and automatic reloading:
-bash
+```bash
 
 export HASKE_DEBUG=True
 haske dev --module app.main:app
+```
 
-📊 Performance Tips
+# 📊 Performance Tips
 
     Use Rust Extensions: Ensure Rust is installed for maximum performance
 
@@ -425,11 +442,11 @@ haske dev --module app.main:app
 
     Background Processing: Use background tasks for long-running operations
 
-🚨 Common Issues
+# 🚨 Common Issues
 Rust Installation Fails
 
 If automatic Rust installation fails:
-bash
+```bash
 
 # Install manually
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -437,27 +454,30 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Or use Python-only mode
 export HASKE_NO_RUST=1
 pip install haske
-
-Dependency Conflicts
+```
+# Dependency Conflicts
 
 If you encounter dependency conflicts:
 bash
 
 # Create virtual environment
+```bash
 python -m venv venv
 source venv/bin/activate
 
 # Install with dependency resolution
 pip install --upgrade pip
 pip install haske
+```
 
-Port Already in Use
+# Port Already in Use
 
 If port 8000 is already in use:
-bash
+```bash
 
 haske dev --module app.main:app --port 8001
+```
 
-Haske - Where Python simplicity meets Rust performance. 🚀
+## Haske - Where Python simplicity meets Rust performance. 🚀
 
-Start building high-performance web applications today!
+# Start building high-performance web applications today!
