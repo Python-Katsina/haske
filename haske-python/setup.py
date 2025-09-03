@@ -156,7 +156,7 @@ setup(
     description="High-performance Python web framework with Rust extensions",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
-    url="https://github.com/your-org/haske",
+    url="https://github.com/Python-Katsina/haske",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
