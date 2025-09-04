@@ -20,7 +20,7 @@ __pycache__/
 # Build and distribution
 build/
 dist/
-*.whl
+# *.whl
 *.tar.gz
 wheelhouse/
 
@@ -170,6 +170,7 @@ tests/*/
 !*.css
 !*.js
 !*.json
+!*.whl
 
 # Allow specific directories content
 !**/templates/**

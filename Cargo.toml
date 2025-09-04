@@ -1,0 +1,14 @@
+# Cargo.toml (in root directory)
+[package]
+name = "haske-core"
+version = "0.1.0"
+edition = "2021"
+
+# Explicitly tell Cargo where to find source files
+[lib]
+name = "_haske_core"
+path = "src/lib.rs"  # Explicit path
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20.0", features = ["extension-module"] }
