@@ -152,7 +152,7 @@ class Haske:
         """
         self.routes.append(Mount(path, app=app, name=name))
 
-    def static(self, path: str, directory: str, name: str = None):
+    def static(self, path: str = "/static", directory: str = "static", name: str = None):
         """
         Serve static files from a directory.
         
