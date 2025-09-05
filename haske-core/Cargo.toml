@@ -10,7 +10,7 @@ name = "_haske_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.26", features = ["extension-module", "auto-initialize"] }
 regex = "1.7.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
