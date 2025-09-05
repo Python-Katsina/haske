@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 mod path;
 mod router;
@@ -11,8 +12,8 @@ mod compress;
 mod ws;
 
 #[pymodule]
-fn _haske_core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    // Register classes
+fn _haske_core(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Register classes directly
     m.add_class::<router::HaskeApp>()?;
     m.add_class::<cache::HaskeCache>()?;
     m.add_class::<ws::WebSocketFrame>()?;
@@ -56,6 +57,10 @@ fn _haske_core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // WebSocket functions
     m.add_function(wrap_pyfunction!(ws::websocket_accept_key, m)?)?;
 
-    m.add("__doc__", "Haske core extension: fast routing, json, templates, crypto, orm helpers.")?;
+    // Metadata
+   m.setattr("__doc__", "Haske core extension: fast routing, json, templates, crypto, orm helpers.")?;
+    m.setattr("HAS_RUST_EXTENSION", true)?;
+
+
     Ok(())
 }
