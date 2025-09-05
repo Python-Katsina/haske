@@ -11,7 +11,7 @@ mod compress;
 mod ws;
 
 #[pymodule]
-fn _haske_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _haske_core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Register classes
     m.add_class::<router::HaskeApp>()?;
     m.add_class::<cache::HaskeCache>()?;

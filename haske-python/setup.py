@@ -1,180 +1,149 @@
-# haske-python/setup.py
 import os
 import sys
-import subprocess
 import platform
+import subprocess
+import site
+from pathlib import Path
 from setuptools import setup, find_packages
-from setuptools.command.install import install
-from setuptools.command.develop import develop
 
-def check_rust_installed():
-    """Check if Rust is installed on the system"""
-    try:
-        result = subprocess.run(["rustc", "--version"], 
-                              capture_output=True, text=True, timeout=10)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+class WheelInstaller:
+    """Handles installation of haske and haske_core wheels with OS/platform checks."""
+
+    # Platform tags to detect
+    PLATFORM_TAGS = {
+        "windows": "win",
+        "linux": "linux",
+        "darwin": "macosx",
+    }
+
+    @staticmethod
+    def get_current_platform_tag():
+        system = platform.system().lower()
+        return WheelInstaller.PLATFORM_TAGS.get(system, None)
+
+    @staticmethod
+    def find_wheels(directory, platform_tag):
+        wheel_dir = Path(directory)
+        if not wheel_dir.exists():
+            return None, None
+
+        haske_wheel, haske_core_wheel = None, None
+
+        for wheel_file in wheel_dir.glob("*.whl"):
+            name = wheel_file.name.lower()
+            if platform_tag in name or "any.whl" in name:
+                if name.startswith("haske-") and not name.startswith("haske_core-"):
+                    haske_wheel = wheel_file
+                elif name.startswith("haske_core-"):
+                    haske_core_wheel = wheel_file
+
+        return haske_wheel, haske_core_wheel
+
+    @staticmethod
+    def install_wheel(wheel_path):
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install",
+                "--force-reinstall", "--no-deps", str(wheel_path)
+            ])
+            print(f"✅ Installed wheel: {wheel_path.name}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to install {wheel_path.name}: {e}")
+            return False
+
+    @staticmethod
+    def configure_paths(current_dir):
+        if str(current_dir) not in sys.path:
+            sys.path.insert(0, str(current_dir))
+
+        try:
+            site_packages = site.getsitepackages()
+            if site_packages:
+                pth_file = Path(site_packages[0]) / "haske.pth"
+                with open(pth_file, "w") as f:
+                    f.write(str(current_dir) + "\n")
+                print(f"✅ Created .pth file: {pth_file}")
+        except Exception as e:
+            print(f"⚠ Could not create .pth file: {e}")
+
+    @staticmethod
+    def install_requirements():
+        """Install requirements.txt if it exists in the current directory."""
+        req_file = Path("requirements.txt")
+        if req_file.exists():
+            print("📋 Installing dependencies from requirements.txt...")
+            try:
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", "-r", str(req_file)
+                ])
+                print("✅ requirements.txt installed successfully")
+                return True
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Failed to install requirements: {e}")
+                return False
+        else:
+            print("ℹ️ No requirements.txt found, skipping dependency install")
         return False
 
-def install_rust():
-    """Install Rust using rustup"""
-    system = platform.system().lower()
-    
-    print("Installing Rust...")
-    
-    if system == "windows":
-        # Windows installation
-        try:
-            subprocess.run([
-                "powershell", "-Command", 
-                "Invoke-WebRequest -Uri https://win.rustup.rs -OutFile rustup-init.exe; "
-                ".\\rustup-init.exe -y --default-toolchain stable --profile minimal"
-            ], check=True, timeout=300)
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            print("Failed to install Rust on Windows automatically.")
-            print("Please install Rust manually from: https://rustup.rs/")
-            sys.exit(1)
-            
-    elif system in ["linux", "darwin"]:
-        # Linux/macOS installation
-        try:
-            subprocess.run([
-                "curl", "--proto", "=https", "--tlsv1.2", "-sSf", 
-                "https://sh.rustup.rs", "|", "sh", "-s", "--", 
-                "-y", "--default-toolchain", "stable", "--profile", "minimal"
-            ], shell=True, check=True, timeout=300)
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            print("Failed to install Rust automatically.")
-            print("Please install Rust manually using: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh")
-            sys.exit(1)
-    else:
-        print(f"Unsupported operating system: {system}")
-        print("Please install Rust manually from: https://rustup.rs/")
-        sys.exit(1)
-    
-    # Add cargo to PATH for current process
-    home_dir = os.path.expanduser("~")
-    if system == "windows":
-        cargo_bin = os.path.join(home_dir, ".cargo", "bin")
-    else:
-        cargo_bin = os.path.join(home_dir, ".cargo", "bin")
-    
-    os.environ["PATH"] = cargo_bin + os.pathsep + os.environ.get("PATH", "")
-    
-    # Verify installation
-    if not check_rust_installed():
-        print("Rust installation failed. Please install manually from: https://rustup.rs/")
-        sys.exit(1)
-    
-    print("Rust installed successfully!")
 
-def install_requirements():
-    """Install requirements from requirements.txt if it exists"""
-    requirements_file = "requirements.txt"
-    
-    if os.path.exists(requirements_file):
-        print(f"Installing requirements from {requirements_file}...")
-        try:
-            subprocess.run([
-                sys.executable, "-m", "pip", "install", "-r", requirements_file
-            ], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to install requirements: {e}")
-            sys.exit(1)
-    else:
-        print(f"{requirements_file} not found. Using default dependencies.")
+def auto_install():
+    print("🚀 Installing Haske with platform-aware wheel detection...")
+    print("="*60)
 
-class CustomInstall(install):
-    """Custom install command that handles Rust and requirements"""
-    def run(self):
-        # Check if Rust is installed
-        if not check_rust_installed():
-            install_rust()
-        
-        # Install requirements
-        install_requirements()
-        
-        # Proceed with normal installation
-        super().run()
+    platform_tag = WheelInstaller.get_current_platform_tag()
+    if not platform_tag:
+        print("⚠ Could not detect platform, defaulting to universal wheels (any.whl)")
+        platform_tag = "any.whl"
 
-class CustomDevelop(develop):
-    """Custom develop command that handles Rust and requirements"""
-    def run(self):
-        # Check if Rust is installed
-        if not check_rust_installed():
-            install_rust()
-        
-        # Install requirements
-        install_requirements()
-        
-        # Proceed with normal development installation
-        super().run()
+    print(f"🔎 Looking for wheels matching platform: {platform_tag}")
 
-# Check if we can import setuptools_rust (will fail if Rust is not available)
-try:
-    from setuptools_rust import RustExtension, Binding
-    
-    rust_extensions = [
-        RustExtension(
-            "_haske_core",
-            path="../haske-core/Cargo.toml",
-            debug=False,
-            binding=Binding.PyO3,
-            strip=True,
-        )
+    wheel_locations = [
+        "dist",
+        "target/wheels",
+        "haske-core/target/wheels",
+        "haske-python/target/wheels",
+        os.getcwd(),
     ]
-    
-except ImportError:
-    print("setuptools-rust not available. Rust extensions will be skipped.")
-    rust_extensions = []
 
-setup(
-    name="haske",
-    version="0.1.0",
-    packages=find_packages(),
-    rust_extensions=rust_extensions,
-    install_requires=[
-        "starlette>=0.27.0",
-        "uvicorn>=0.20.0",
-        "jinja2>=3.0.0",
-        "sqlalchemy>=1.4.0",
-        "typer>=0.9.0",
-        "python-multipart>=0.0.5",
-        "httpx>=0.24.0",
-        "maturin>=0.12.0",
-        "itsdangerous>=2.1.0",
-        "setuptools-rust>=1.8,<2.0",  # Ensure this is available
-    ],
-    cmdclass={
-        'install': CustomInstall,
-        'develop': CustomDevelop,
-    },
-    zip_safe=False,
-    python_requires=">=3.8",
-    author="Haske Team",
-    author_email="haske@example.com",
-    description="High-performance Python web framework with Rust extensions",
-    long_description=open("README.md").read() if os.path.exists("README.md") else "",
-    long_description_content_type="text/markdown",
-    url="https://github.com/Python-Katsina/haske",
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Rust",
-        "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-        "Topic :: Software Development :: Libraries :: Application Frameworks",
-    ],
-    entry_points={
-        "console_scripts": [
-            "haske=haske.cli:cli",
-        ],
-    },
-    include_package_data=True,
-)
+    installed = False
+    for location in wheel_locations:
+        haske_wheel, haske_core_wheel = WheelInstaller.find_wheels(location, platform_tag)
+        if haske_wheel and haske_core_wheel:
+            print(f"📦 Found wheels in {location}")
+            WheelInstaller.install_wheel(haske_core_wheel)
+            WheelInstaller.install_wheel(haske_wheel)
+            installed = True
+            break
+
+    if not installed:
+        print("⚠ No matching wheels found. Installing Python sources only...")
+        setup(
+            name="haske",
+            version="0.1.0",
+            description="High-performance Python web framework with Rust extensions",
+            author="Haske Team",
+            packages=find_packages(include=['haske', 'haske.*']),
+            install_requires=[],
+            zip_safe=False,
+        )
+
+    # Install requirements.txt if available
+    WheelInstaller.install_requirements()
+
+    # Configure paths
+    WheelInstaller.configure_paths(Path(__file__).parent.absolute())
+
+    # Verify import
+    try:
+        import haske
+        print(f"✅ Import success! Version: {getattr(haske, '__version__', 'unknown')}")
+    except Exception as e:
+        print(f"❌ Import failed: {e}")
+
+    print("="*60)
+    print("🎉 Setup finished!")
+
+
+if __name__ == "__main__":
+    auto_install()

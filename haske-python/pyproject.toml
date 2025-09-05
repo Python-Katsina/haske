@@ -1,6 +1,7 @@
 [build-system]
-requires = ["setuptools", "wheel", "maturin>=0.12,<0.13", "setuptools-rust>=1.5.2"]
-build-backend = "setuptools.build_meta"
+# Use a maturin range compatible with modern installations (you reported 1.9.4)
+requires = ["maturin>=1.0,<2.0", "setuptools", "wheel"]
+build-backend = "maturin"
 
 [project]
 name = "haske"
@@ -8,43 +9,43 @@ version = "0.1.0"
 description = "A high-performance Python web framework with Rust extensions"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 authors = [
-    {name = "Yusee Habibu", email = "yusee201520@gmail.com"},
+  { name = "Yusee Habibu", email = "yusee201520@gmail.com" },
 ]
+
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Rust",
-    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Rust",
+  "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
+
 dependencies = [
-    "starlette >=0.27.0",
-    "uvicorn >=0.20.0",
-    "jinja2 >=3.0.0",
-    "sqlalchemy >=1.4.0",
-    "typer >=0.9.0",
-    "python-multipart >=0.0.5",
-    "httpx >=0.24.0",
+  "starlette>=0.27.0",
+  "uvicorn>=0.20.0",
+  "jinja2>=3.0.0",
+  "sqlalchemy>=1.4.0",
+  "typer>=0.9.0",
+  "python-multipart>=0.0.5",
+  "httpx>=0.24.0",
+  "itsdangerous>=2.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest >=7.0.0",
-    "pytest-asyncio >=0.20.0",
-    "black >=22.0.0",
-    "mypy >=0.991",
-    "ruff >=0.0.260",
-]
-all = [
-    "haske[dev]",
+  "pytest>=7.0.0",
+  "pytest-asyncio>=0.20.0",
+  "black>=22.0.0",
+  "mypy>=0.991",
+  "ruff>=0.0.260",
 ]
 
 [project.urls]
@@ -54,17 +55,25 @@ Repository = "https://github.com/Python-Katsina/haske"
 Changelog = "https://github.com/Python-Katsina/haske/releases"
 
 [tool.maturin]
-features = ["simd", "extension-module"]
+# This MUST match the python-importable extension module name exported by the crate
+bindings = "pyo3"
+module-name = "_haske_core"
 
-[tool.ruff]
-line-length = 88
-select = ["E", "F", "B", "I", "C", "W"]
-ignore = ["E501", "E203"]
+# Where your Python package lives (the python package that will be included in the wheel).
+# Adjust this to the folder that contains your Python package (package dir with __init__.py).
 
-[tool.black]
-line-length = 88
-target-version = ['py38']
+python-source = "haske"
 
-rust = [
-    "maturin >=0.14,<0.15",
-]
+features = []
+rustc-args = ["-C", "target-cpu=native"]
+manylinux = "off"
+
+[tool.maturin.project]
+name = "haske"
+version = "0.1.0"
+description = "High-performance Python web framework with Rust extensions"
+
+# For sdist builds
+[tool.maturin.sdist]
+include = ["src/**/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "LICENSE", "README.md"]
+exclude = ["target/**", "*.so", "*.dylib", "*.dll"]
