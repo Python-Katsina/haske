@@ -44,7 +44,6 @@ from .admin import generate_admin_index, generate_admin_api
 from .routing import Route, PathConverter, IntConverter, FloatConverter, UUIDConverter, PathConverterRegistry, convert_path
 from .cli import cli
 
-from _haske_core import *
 
 __version__ = "0.1.0"
 __all__ = [

@@ -2,7 +2,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
 #[pymodule]
-fn haske(py: Python, m: &PyModule) -> PyResult<()> {
+// #[pyo3(name = "_haske_core")]
+fn haske(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // Import the core module
     let core = PyModule::import(py, "_haske_core")?;
 
