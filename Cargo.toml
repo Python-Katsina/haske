@@ -7,7 +7,7 @@ edition = "2021"
 # Explicitly tell Cargo where to find source files
 [lib]
 name = "_haske_core"
-path = "src/lib.rs"  # Explicit path
+path = "haske-core/src/lib.rs"  # Explicit path
 crate-type = ["cdylib"]
 
 [dependencies]
