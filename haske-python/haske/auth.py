@@ -9,7 +9,13 @@ session tokens, password hashing, CSRF protection, and role-based access control
 import time
 import json
 from typing import Dict, Any, Optional
-from _haske_core import sign_cookie, verify_cookie, hash_password, verify_password, generate_random_bytes
+
+# Import Rust crypto functions if available
+try:
+    from _haske_core import sign_cookie, verify_cookie, hash_password, verify_password, generate_random_bytes
+    HAS_RUST_CRYPTO = True
+except ImportError:
+    HAS_RUST_CRYPTO = False
 
 def create_session_token(secret: str, payload: dict, expires_in: int = 3600) -> str:
     """
@@ -29,7 +35,28 @@ def create_session_token(secret: str, payload: dict, expires_in: int = 3600) -> 
     payload = payload.copy()
     payload["exp"] = int(time.time()) + expires_in
     payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    return sign_cookie(secret, payload_json)
+    
+    if HAS_RUST_CRYPTO:
+        return sign_cookie(secret, payload_json)
+    else:
+        # Fallback Python implementation
+        import hmac
+        import hashlib
+        import base64
+        
+        # Base64 encode the payload
+        encoded_payload = base64.urlsafe_b64encode(payload_json.encode()).decode().rstrip('=')
+        
+        # Create signature
+        signature = hmac.new(
+            secret.encode(), 
+            encoded_payload.encode(), 
+            hashlib.sha256
+        ).digest()
+        
+        encoded_signature = base64.urlsafe_b64encode(signature).decode().rstrip('=')
+        
+        return f"{encoded_payload}.{encoded_signature}"
 
 def verify_session_token(secret: str, token: str) -> Optional[Dict[str, Any]]:
     """
@@ -45,7 +72,41 @@ def verify_session_token(secret: str, token: str) -> Optional[Dict[str, Any]]:
     Example:
         >>> payload = verify_session_token("secret", token)
     """
-    payload_str = verify_cookie(secret, token)
+    if HAS_RUST_CRYPTO:
+        payload_str = verify_cookie(secret, token)
+    else:
+        # Fallback Python implementation
+        import hmac
+        import hashlib
+        import base64
+        
+        try:
+            parts = token.split('.')
+            if len(parts) != 2:
+                return None
+                
+            encoded_payload, encoded_signature = parts
+            
+            # Verify signature
+            expected_signature = hmac.new(
+                secret.encode(), 
+                encoded_payload.encode(), 
+                hashlib.sha256
+            ).digest()
+            
+            expected_encoded = base64.urlsafe_b64encode(expected_signature).decode().rstrip('=')
+            
+            if not hmac.compare_digest(encoded_signature, expected_encoded):
+                return None
+                
+            # Add padding back to base64
+            padding = 4 - (len(encoded_payload) % 4)
+            encoded_payload += '=' * padding
+            
+            payload_str = base64.urlsafe_b64decode(encoded_payload).decode()
+        except Exception:
+            return None
+    
     if payload_str is None:
         return None
     
@@ -71,7 +132,17 @@ def create_password_hash(password: str) -> tuple:
     Example:
         >>> hash_val, salt = create_password_hash("password123")
     """
-    return hash_password(password)
+    if HAS_RUST_CRYPTO:
+        return hash_password(password)
+    else:
+        # Fallback Python implementation
+        import hashlib
+        import os
+        import binascii
+        
+        salt = os.urandom(16)
+        hash_val = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        return hash_val, salt
 
 def verify_password_hash(password: str, hash_val: bytes, salt: bytes) -> bool:
     """
@@ -88,7 +159,14 @@ def verify_password_hash(password: str, hash_val: bytes, salt: bytes) -> bool:
     Example:
         >>> is_valid = verify_password_hash("password123", hash_val, salt)
     """
-    return verify_password(password, hash_val, salt)
+    if HAS_RUST_CRYPTO:
+        return verify_password(password, hash_val, salt)
+    else:
+        # Fallback Python implementation
+        import hashlib
+        
+        test_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+        return hmac.compare_digest(hash_val, test_hash)
 
 def generate_csrf_token() -> str:
     """
@@ -100,7 +178,13 @@ def generate_csrf_token() -> str:
     Example:
         >>> token = generate_csrf_token()
     """
-    return generate_random_bytes(32).hex()
+    if HAS_RUST_CRYPTO:
+        return generate_random_bytes(32).hex()
+    else:
+        # Fallback Python implementation
+        import os
+        import binascii
+        return binascii.hexlify(os.urandom(32)).decode()
 
 def validate_csrf_token(token: str, expected: str) -> bool:
     """

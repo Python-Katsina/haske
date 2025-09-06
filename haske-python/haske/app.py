@@ -22,6 +22,13 @@ import uvicorn
 import inspect
 import sys
 
+# Import Rust router if available
+try:
+    from _haske_core import HaskeApp as RustRouter
+    HAS_RUST_ROUTER = True
+except ImportError:
+    HAS_RUST_ROUTER = False
+
 class Haske:
     """
     Main Haske application class.
@@ -49,6 +56,12 @@ class Haske:
         self.middleware_stack = []
         self.starlette_app: Optional[Starlette] = None
         self.start_time = time.time()
+        
+        # Initialize Rust router if available
+        if HAS_RUST_ROUTER:
+            self._rust_router = RustRouter()
+        else:
+            self._rust_router = None
 
         self.frontend_manager = None
         self.frontend_config = None
@@ -80,8 +93,21 @@ class Haske:
                 result = await func(request)
                 return self._convert_to_response(result)
             
-            # Add to Starlette routes
+            # Add to both Starlette and Rust router (if available)
             self.routes.append(Route(path, endpoint, methods=methods, name=name))
+            
+            # Add to Rust router for faster matching
+            if self._rust_router is not None:
+                # Convert Starlette path format to regex
+                from .routing import convert_path
+                regex_path = convert_path(path.replace("<", ":").replace(">", ""))
+                
+                # Add to Rust router
+                self._rust_router.add_route(
+                    ",".join(methods), 
+                    regex_path, 
+                    func
+                )
             
             return func
         return decorator
@@ -189,6 +215,27 @@ class Haske:
             return JSONResponse(result)
         return Response(str(result))
 
+    def match_request(self, method: str, path: str):
+        """
+        Match a request using Rust router if available.
+        
+        Args:
+            method: HTTP method
+            path: Request path
+            
+        Returns:
+            tuple: (handler, params) or (None, None)
+        """
+        if self._rust_router is not None:
+            # Use Rust router for faster matching
+            result = self._rust_router.match_request(method, path)
+            if result:
+                handler, params = result
+                return handler, params
+        
+        # Fallback to Starlette routing
+        return None, None
+
     def build(self) -> Starlette:
         """
         Build the internal Starlette app.
@@ -217,6 +264,28 @@ class Haske:
         if self.starlette_app is None:
             self.build()
         
+        # Try Rust routing first if available
+        if (scope["type"] == "http" and self._rust_router is not None):
+            method = scope["method"]
+            path = scope["path"]
+            
+            handler, params = self.match_request(method, path)
+            if handler:
+                # Create request object
+                from .request import Request
+                request = Request(scope, receive, send, params)
+                
+                # Execute handler
+                try:
+                    result = await handler(request)
+                    response = self._convert_to_response(result)
+                    await response(scope, receive, send)
+                    return
+                except Exception as e:
+                    # Fall back to Starlette if Rust handler fails
+                    pass
+        
+        # Fall back to Starlette
         await self.starlette_app(scope, receive, send)
 
     def get_uptime(self) -> float:
@@ -235,9 +304,12 @@ class Haske:
         Returns:
             dict: Application statistics including uptime, route count, etc.
         """
+        rust_routes = self._rust_router.route_count() if self._rust_router else 0
+        
         return {
             "uptime": self.get_uptime(),
             "routes": len(self.routes),
+            "rust_routes": rust_routes,
             "middleware": len(self.middleware_stack),
         }
 

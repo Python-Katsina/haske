@@ -8,7 +8,13 @@ for improved performance and additional template utilities.
 
 from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from _haske_core import render_template as rust_render_template, precompile_template
+
+# Import Rust template functions if available
+try:
+    from _haske_core import render_template as rust_render_template, precompile_template
+    HAS_RUST_TEMPLATES = True
+except ImportError:
+    HAS_RUST_TEMPLATES = False
 
 _env = None  # global Jinja2 environment
 
@@ -96,7 +102,12 @@ class TemplateEngine:
         """
         template = self.get_template(template_name)
         source = template.source
-        precompiled = precompile_template(source)
+        
+        if HAS_RUST_TEMPLATES:
+            precompiled = precompile_template(source)
+        else:
+            # Fallback - just return the source
+            precompiled = source
         
         # Store precompiled version
         self._precompiled_templates[template_name] = precompiled
@@ -122,13 +133,14 @@ class TemplateEngine:
         precompiled = self._precompiled_templates[template_name]
         
         # Try Rust rendering first
-        try:
-            result = rust_render_template(precompiled, context)
-            if result:
-                return result
-        except Exception:
-            # Fall back to Jinja2
-            pass
+        if HAS_RUST_TEMPLATES:
+            try:
+                result = rust_render_template(precompiled, context)
+                if result:
+                    return result
+            except Exception:
+                # Fall back to Jinja2
+                pass
         
         # Fall back to standard rendering
         template = self.get_template(template_name)

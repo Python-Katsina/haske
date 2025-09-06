@@ -13,6 +13,13 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from typing import Callable, Any
 
+# Import Rust compression if available
+try:
+    from _haske_core import gzip_compress, brotli_compress
+    HAS_RUST_COMPRESSION = True
+except ImportError:
+    HAS_RUST_COMPRESSION = False
+
 class Middleware(StarletteMiddleware):
     """
     Haske Middleware wrapper around Starlette's Middleware.
@@ -126,6 +133,113 @@ class CompressionMiddlewareFactory:
             tuple: (Middleware class, options dictionary)
         """
         return self.middleware_cls, self.options
+
+class CompressionMiddleware:
+    """
+    Custom compression middleware with Rust acceleration.
+    """
+    
+    def __init__(self, app, minimum_size=500, compression_level=6):
+        """
+        Initialize compression middleware.
+        """
+        self.app = app
+        self.minimum_size = minimum_size
+        self.compression_level = compression_level
+    
+    async def __call__(self, scope, receive, send) -> None:
+        """
+        ASGI middleware implementation.
+        """
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        
+        # Let the app process the request first
+        response_sent = False
+        
+        async def custom_send(message):
+            nonlocal response_sent
+            if message["type"] == "http.response.start":
+                # Store response headers for later compression
+                self.response_headers = message["headers"]
+            elif message["type"] == "http.response.body" and not response_sent:
+                # Compress response body if applicable
+                body = message.get("body", b"")
+                more_body = message.get("more_body", False)
+                
+                if (not more_body and len(body) >= self.minimum_size and 
+                    self._should_compress(self.response_headers)):
+                    
+                    # Get accepted encoding from request
+                    request_headers = dict(scope.get("headers", []))
+                    accept_encoding = request_headers.get(b"accept-encoding", b"").decode().lower()
+                    
+                    # Choose compression algorithm
+                    if "br" in accept_encoding and HAS_RUST_COMPRESSION:
+                        compressed = brotli_compress(body)
+                        encoding = "br"
+                    elif "gzip" in accept_encoding and HAS_RUST_COMPRESSION:
+                        compressed = gzip_compress(body)
+                        encoding = "gzip"
+                    else:
+                        # Fallback to Python compression or no compression
+                        compressed = body
+                        encoding = None
+                    
+                    if encoding:
+                        # Update headers
+                        new_headers = []
+                        for name, value in self.response_headers:
+                            if name.lower() == b"content-encoding":
+                                continue  # Remove existing encoding
+                            if name.lower() == b"content-length":
+                                value = str(len(compressed)).encode()
+                            new_headers.append((name, value))
+                        
+                        new_headers.append((b"content-encoding", encoding.encode()))
+                        new_headers.append((b"content-length", str(len(compressed)).encode()))
+                        
+                        # Send compressed response
+                        await send({
+                            "type": "http.response.start",
+                            "status": 200,
+                            "headers": new_headers
+                        })
+                        
+                        await send({
+                            "type": "http.response.body",
+                            "body": compressed,
+                            "more_body": False
+                        })
+                        response_sent = True
+                        return
+                
+                # Send uncompressed response
+                await send(message)
+                response_sent = True
+        
+        await self.app(scope, receive, custom_send)
+    
+    def _should_compress(self, headers):
+        """
+        Check if response should be compressed based on content type.
+        """
+        content_type = None
+        for name, value in headers:
+            if name.lower() == b"content-type":
+                content_type = value.decode().lower()
+                break
+        
+        if not content_type:
+            return False
+        
+        # Compress text-based content types
+        compressible_types = [
+            "text/", "application/json", "application/javascript", 
+            "application/xml", "application/xhtml+xml"
+        ]
+        
+        return any(content_type.startswith(t) for t in compressible_types)
 
 class RateLimitMiddleware:
     """

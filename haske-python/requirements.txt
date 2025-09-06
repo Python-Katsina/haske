@@ -8,4 +8,5 @@ setuptools
 setuptools-rust                      
 bcrypt
 itsdangerous
-starlette-csrf                                   
+starlette-csrf
+typer

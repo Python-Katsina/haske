@@ -15,7 +15,13 @@ from starlette.responses import (
     StreamingResponse as StarletteStreamingResponse,
     FileResponse as StarletteFileResponse,
 )
-from _haske_core import gzip_compress, brotli_compress
+
+# Import Rust compression functions if available
+try:
+    from _haske_core import gzip_compress, brotli_compress
+    HAS_RUST_COMPRESSION = True
+except ImportError:
+    HAS_RUST_COMPRESSION = False
 
 class Response(StarletteResponse):
     """
@@ -63,12 +69,24 @@ class Response(StarletteResponse):
         if self.compressed or not self.body:
             return self
         
-        if algorithm == "gzip":
-            compressed = gzip_compress(self.body)
-        elif algorithm == "brotli":
-            compressed = brotli_compress(self.body)
+        if HAS_RUST_COMPRESSION:
+            if algorithm == "gzip":
+                compressed = gzip_compress(self.body)
+            elif algorithm == "brotli":
+                compressed = brotli_compress(self.body)
+            else:
+                return self
         else:
-            return self
+            # Fallback Python implementation
+            import gzip
+            import brotli
+            
+            if algorithm == "gzip":
+                compressed = gzip.compress(self.body)
+            elif algorithm == "brotli":
+                compressed = brotli.compress(self.body)
+            else:
+                return self
         
         self.body = compressed
         self.headers["content-encoding"] = algorithm
