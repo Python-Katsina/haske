@@ -1,5 +1,6 @@
 starlette
 uvicorn[standard]
+typer
 jinja2
 sqlalchemy
 aiosqlite
@@ -9,4 +10,5 @@ setuptools-rust
 bcrypt
 itsdangerous
 starlette-csrf
-typer
+httpx
+python-multipart
