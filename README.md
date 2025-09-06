@@ -59,9 +59,9 @@ pip install haske
 Or, from source:
 
 ```bash
-git clone https://github.com/Python-Katsina/haske.git
-cd haske
-pip install -e .
+git clone https://github.com/Python-Katsina/haske-python.git
+cd haske-python
+python setup.py
 ```
 
 ---
