@@ -50,7 +50,7 @@ fn render_simple_template(template_src: &str, context: &Bound<'_, PyDict>) -> Py
         if let Some(var_name) = cap.get(1) {
             let var_name = var_name.as_str();
             if let Ok(Some(value)) = context.get_item(var_name) {
-                let value_str = value.str()?.to_str()?.to_string();
+                let value_str = value.str()?.to_cow()?.to_string();
                 result = result.replace(&cap[0], &value_str);
             }
         }
