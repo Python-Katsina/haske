@@ -1,0 +1,17 @@
+Key Features:
+
+    Unified Server: Single Haske server serves both backend API and frontend
+
+    Production Mode: Serves built frontend files (React build, Vue dist, etc.)
+
+    Development Mode: Proxies requests to frontend dev servers (Vite, CRA, etc.)
+
+    SPA Support: Automatic fallback to index.html for client-side routing
+
+    Framework Detection: Auto-detects React, Vue, Next.js, Angular, Svelte
+
+    Static File Serving: Efficient static file serving with proper caching
+
+    CLI Integration: Easy setup commands for different frameworks
+
+    Type Safety: Full TypeScript support with interface generation
