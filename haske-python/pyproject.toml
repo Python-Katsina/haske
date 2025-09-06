@@ -58,11 +58,12 @@ Changelog = "https://github.com/Python-Katsina/haske/releases"
 # This MUST match the python-importable extension module name exported by the crate
 bindings = "pyo3"
 module-name = "_haske_core"
+manifest-path = "../haske-core/Cargo.toml"
 
 # Where your Python package lives (the python package that will be included in the wheel).
 # Adjust this to the folder that contains your Python package (package dir with __init__.py).
 
-python-source = "haske"
+python-source = "./haske"
 
 features = []
 rustc-args = ["-C", "target-cpu=native"]
@@ -73,7 +74,3 @@ name = "haske"
 version = "0.1.0"
 description = "High-performance Python web framework with Rust extensions"
 
-# For sdist builds
-[tool.maturin.sdist]
-include = ["src/**/*", "Cargo.toml", "Cargo.lock", "pyproject.toml", "LICENSE", "README.md"]
-exclude = ["target/**", "*.so", "*.dylib", "*.dll"]

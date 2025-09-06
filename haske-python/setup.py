@@ -41,10 +41,14 @@ class WheelInstaller:
 
     @staticmethod
     def install_wheel(wheel_path):
+        wheel_path = Path(wheel_path)
+        if not wheel_path.exists() or not wheel_path.suffix == ".whl":
+            print(f"❌ Not a valid wheel file: {wheel_path}")
+            return False
         try:
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install",
-                "--force-reinstall", "--no-deps", str(wheel_path)
+                "--force-reinstall", "--no-deps", str(wheel_path.resolve())
             ])
             print(f"✅ Installed wheel: {wheel_path.name}")
             return True

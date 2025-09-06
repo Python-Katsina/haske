@@ -1,16 +1,14 @@
 [package]
-name = "haske-core"
+name = "haske_core"
 version = "0.1.0"
 edition = "2021"
-publish = false
 
 [lib]
-# The importable Python module will be named `_haske_core` and the dynamic lib type is cdylib
 name = "_haske_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.26", features = ["extension-module"] }
 regex = "1.7.0"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
@@ -25,8 +23,8 @@ zstd = "0.12.0"
 bytes = "1.4.0"
 parking_lot = "0.12.1"
 constant_time_eq = "0.2.5"
-moka = "0.10.0"
-sha1 = "0.10.5"
+moka = "0.10.0"  # Added moka dependency
+sha1 = "0.10.5"  # Added sha1 dependency
 
 # Optional SIMD support
 [features]
@@ -38,8 +36,4 @@ version = "0.9.0"
 optional = true
 
 [build-dependencies]
-pyo3-build-config = "0.18.0"
-
-[profile.release]
-strip = "symbols"
-lto = true
+pyo3-build-config = "0.26.0"
