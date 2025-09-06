@@ -9,7 +9,13 @@ JSON parsing, form handling, and convenient access to request data.
 import json
 from typing import Dict, Any, Optional
 from starlette.requests import Request as StarletteReq
-from _haske_core import json_loads_bytes, json_is_valid, json_extract_field
+
+# Import Rust JSON functions if available
+try:
+    from _haske_core import json_loads_bytes, json_is_valid, json_extract_field
+    HAS_RUST_JSON = True
+except ImportError:
+    HAS_RUST_JSON = False
 
 class Request:
     """
@@ -119,17 +125,20 @@ class Request:
             body = await self.body()
             
             # Try Rust-accelerated JSON parsing first
-            if body:
-                parsed = json_loads_bytes(body)
-                if parsed is not None:
-                    self._json = parsed
-                else:
-                    # Fall back to Python JSON
-                    try:
-                        self._json = json.loads(body.decode("utf-8") or "null")
-                    except json.JSONDecodeError:
-                        self._json = {}
-            else:
+            if body and HAS_RUST_JSON:
+                try:
+                    parsed = json_loads_bytes(body)
+                    if parsed is not None:
+                        self._json = parsed
+                        return self._json
+                except Exception:
+                    # Fall back to Python JSON if Rust parsing fails
+                    pass
+            
+            # Fall back to Python JSON
+            try:
+                self._json = json.loads(body.decode("utf-8") or "null")
+            except json.JSONDecodeError:
                 self._json = {}
         
         return self._json
@@ -239,6 +248,51 @@ class Request:
         """
         content_type = self.headers.get("content-type", "")
         return "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type
+
+    def is_valid_json(self) -> bool:
+        """
+        Check if request contains valid JSON using Rust acceleration.
+        
+        Returns:
+            bool: True if content is valid JSON
+        """
+        if not self.is_json():
+            return False
+            
+        if HAS_RUST_JSON:
+            body = self._body or b""
+            return json_is_valid(body)
+        else:
+            # Fallback implementation
+            try:
+                self.json()
+                return True
+            except json.JSONDecodeError:
+                return False
+
+    def extract_json_field(self, field: str) -> Optional[str]:
+        """
+        Extract specific field from JSON using Rust acceleration.
+        
+        Args:
+            field: Field name to extract
+            
+        Returns:
+            Optional[str]: Field value or None
+        """
+        if not self.is_json():
+            return None
+            
+        if HAS_RUST_JSON:
+            body = self._body or b""
+            return json_extract_field(body, field)
+        else:
+            # Fallback implementation
+            try:
+                data = self.json()
+                return str(data.get(field, None))
+            except Exception:
+                return None
 
     async def validate_json(self, schema: Any = None) -> Any:
         """

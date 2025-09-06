@@ -10,6 +10,13 @@ from typing import Callable, List, Any, Dict
 from starlette.routing import Route as StarletteRoute
 import re
 
+# Import Rust path functions if available
+try:
+    from _haske_core import compile_path, match_path
+    HAS_RUST_ROUTING = True
+except ImportError:
+    HAS_RUST_ROUTING = False
+
 class Route(StarletteRoute):
     """
     Haske Route class extending Starlette's Route.
@@ -29,6 +36,19 @@ class Route(StarletteRoute):
             name: Route name, defaults to None
             **kwargs: Additional route options
         """
+        # Convert path to regex using Rust if available
+        if HAS_RUST_ROUTING:
+            try:
+                # Try to compile with Rust
+                regex_path = compile_path(path)
+                # Use the compiled regex path
+                super().__init__(regex_path, endpoint, methods=methods or ["GET"], name=name, **kwargs)
+                return
+            except Exception:
+                # Fall back to Starlette if Rust compilation fails
+                pass
+        
+        # Fall back to Starlette path handling
         super().__init__(path, endpoint, methods=methods or ["GET"], name=name, **kwargs)
 
 class PathConverter:
@@ -254,4 +274,12 @@ def convert_path(path: str) -> str:
     Example:
         >>> convert_path("/user/<int:id>/post/<uuid:post_id>")
     """
+    if HAS_RUST_ROUTING:
+        try:
+            return compile_path(path)
+        except Exception:
+            # Fall back to Python implementation
+            pass
+    
+    # Fallback Python implementation
     return default_converter_registry.convert_path(path)

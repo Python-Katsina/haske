@@ -11,7 +11,13 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from _haske_core import prepare_query, prepare_queries
+
+# Import Rust query preparation functions if available
+try:
+    from _haske_core import prepare_query, prepare_queries
+    HAS_RUST_ORM = True
+except ImportError:
+    HAS_RUST_ORM = False
 
 class Database:
     """
@@ -53,7 +59,13 @@ class Database:
             >>> users = await db.fetch_all("SELECT * FROM users WHERE active = :active", {"active": True})
         """
         params = params or {}
-        query, positional = prepare_query(sql, params)
+        
+        if HAS_RUST_ORM:
+            query, positional = prepare_query(sql, params)
+        else:
+            # Fallback Python implementation
+            query = sql
+            positional = params
         
         async with self.async_session() as session:
             result = await session.execute(text(query), positional)
@@ -74,7 +86,13 @@ class Database:
             >>> user = await db.fetch_one("SELECT * FROM users WHERE id = :id", {"id": user_id})
         """
         params = params or {}
-        query, positional = prepare_query(sql, params)
+        
+        if HAS_RUST_ORM:
+            query, positional = prepare_query(sql, params)
+        else:
+            # Fallback Python implementation
+            query = sql
+            positional = params
         
         async with self.async_session() as session:
             result = await session.execute(text(query), positional)
@@ -95,7 +113,13 @@ class Database:
             >>> result = await db.execute("INSERT INTO users (name) VALUES (:name)", {"name": "John"})
         """
         params = params or {}
-        query, positional = prepare_query(sql, params)
+        
+        if HAS_RUST_ORM:
+            query, positional = prepare_query(sql, params)
+        else:
+            # Fallback Python implementation
+            query = sql
+            positional = params
         
         async with self.async_session() as session:
             result = await session.execute(text(query), positional)
@@ -129,7 +153,13 @@ class Database:
         # Prepare all queries
         prepared_queries = []
         for sql, params in zip(queries, params_list):
-            query, positional = prepare_query(sql, params)
+            if HAS_RUST_ORM:
+                query, positional = prepare_query(sql, params)
+            else:
+                # Fallback Python implementation
+                query = sql
+                positional = params
+            
             prepared_queries.append((query, positional))
         
         # Execute in transaction

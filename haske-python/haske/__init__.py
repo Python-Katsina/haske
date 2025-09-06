@@ -4,29 +4,6 @@ Haske - High-performance Python web framework with Rust acceleration.
 
 This package provides a modern, async-first web framework built on Starlette
 with Rust-powered performance optimizations for critical paths.
-
-Modules:
-    app: Main application class and core functionality
-    request: Enhanced request handling with Rust acceleration
-    response: Comprehensive response types and utilities
-    templates: Template rendering with Jinja2 and Rust optimizations
-    orm: Database ORM with async support
-    auth: Authentication and authorization utilities
-    exceptions: Custom exception types and error handling
-    middleware: Middleware factories and utilities
-    admin: Admin interface generation
-    routing: Route handling and path parameter conversion
-    cli: Command-line interface for development and deployment
-
-Key Features:
-    - Rust-accelerated JSON parsing, routing, and templating
-    - Async/await support throughout
-    - Type annotations and validation
-    - Comprehensive authentication system
-    - Database ORM with multiple backend support
-    - Admin interface generation
-    - Built-in CLI tools
-    - Production-ready deployment options
 """
 
 from .app import Haske
@@ -43,7 +20,36 @@ from .middleware import Middleware, SessionMiddlewareFactory, CORSMiddlewareFact
 from .admin import generate_admin_index, generate_admin_api
 from .routing import Route, PathConverter, IntConverter, FloatConverter, UUIDConverter, PathConverterRegistry, convert_path
 from .cli import cli
+from .cache import Cache, get_default_cache
+from .static import FrontendServer, FrontendDevelopmentServer, FrontendManager, create_frontend_config
 
+# Import Rust extensions
+try:
+    from _haske_core import (
+        HaskeApp as RustRouter, 
+        HaskeCache as RustCache,
+        compile_path, match_path,
+        json_loads_bytes, json_dumps_obj, json_is_valid, json_extract_field,
+        sign_cookie, verify_cookie, hash_password, verify_password, generate_random_bytes,
+        gzip_compress, gzip_decompress, zstd_compress, zstd_decompress, brotli_compress, brotli_decompress,
+        prepare_query, prepare_queries,
+        websocket_accept_key, WebSocketFrame,
+        render_template as rust_render_template, precompile_template
+    )
+    HAS_RUST_EXTENSION = True
+except ImportError:
+    HAS_RUST_EXTENSION = False
+    # Fallback implementations
+    def compile_path(path: str) -> str:
+        from .routing import default_converter_registry
+        return default_converter_registry.convert_path(path)
+    
+    def match_path(pattern: str, path: str):
+        import re
+        regex = re.compile(pattern)
+        if match := regex.match(path):
+            return match.groupdict()
+        return None
 
 __version__ = "0.1.0"
 __all__ = [
@@ -57,5 +63,7 @@ __all__ = [
     "haske_error_handler", "http_error_handler", "validation_error_handler", "install_error_handlers",
     "Middleware", "SessionMiddlewareFactory", "CORSMiddlewareFactory", "CompressionMiddlewareFactory",
     "RateLimitMiddlewareFactory", "generate_admin_index", "generate_admin_api", "Route", "PathConverter",
-    "IntConverter", "FloatConverter", "UUIDConverter", "PathConverterRegistry", "convert_path", "cli"
+    "IntConverter", "FloatConverter", "UUIDConverter", "PathConverterRegistry", "convert_path", "cli",
+    "Cache", "get_default_cache", "FrontendServer", "FrontendDevelopmentServer", "FrontendManager", 
+    "create_frontend_config", "HAS_RUST_EXTENSION"
 ]
