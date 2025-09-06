@@ -1,0 +1,19 @@
+[package]
+name = "haske-python"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "_haske_core"         # This must match the #[pymodule] name
+crate-type = ["cdylib"]
+path = "src/lib.rs"   # 👈 this line ensures Cargo finds the module
+
+
+[dependencies]
+pyo3 = { version = "0.26", features = ["extension-module", "auto-initialize"] }
+haske-core = { path = "../haske-core" }
+
+[profile.release]
+strip = "symbols"
+lto = true
+

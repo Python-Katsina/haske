@@ -1,0 +1,12 @@
+starlette
+uvicorn[standard]
+jinja2
+sqlalchemy
+aiosqlite
+maturin>=1.0,<2.0
+setuptools
+setuptools-rust                      
+bcrypt
+itsdangerous
+starlette-csrf
+typer

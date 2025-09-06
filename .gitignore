@@ -1,0 +1,179 @@
+# Haske Framework - Strict .gitignore
+# Place this in the root of your repository
+
+# ==================== CORE IGNORES ====================
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.python-version
+
+# Rust
+/target/
+**/Cargo.lock
+*.rs.bk
+
+# Build and distribution
+build/
+dist/
+# *.whl
+*.tar.gz
+wheelhouse/
+
+# Virtual environments
+.env/
+.venv/
+venv/
+env/
+ENV/
+pip-selfcheck.json
+
+# ==================== IDE & EDITOR ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.ropeproject
+.mypy_cache/
+.pyre/
+
+# ==================== OS SPECIFIC ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ==================== PROJECT SPECIFIC ====================
+# Haske Core (Rust)
+/haske-core/target/
+/haske-core/**/*.so
+/haske-core/**/*.dylib
+/haske-core/**/*.dll
+
+# Haske Python
+/haske-python/build/
+/haske-python/dist/
+/haske-python/*.egg-info/
+/haske-python/__pycache__/
+/haske-python/**/__pycache__/
+
+# Examples
+/examples/*/__pycache__/
+/examples/*/*.db
+/examples/*/instance/
+/examples/*/.pytest_cache/
+
+# Benchmarks
+/benchmarks/results/
+/benchmarks/__pycache__/
+/benchmarks/**/__pycache__/
+
+# Tests
+/tests/__pycache__/
+/tests/.pytest_cache/
+
+# ==================== TEMPORARY FILES ====================
+*.tmp
+*.temp
+*.log
+*.cache
+.cache/
+.npm/
+.yarn/
+.yarn-integrity
+
+# ==================== COVERAGE & TESTING ====================
+.coverage
+.coverage.*
+htmlcov/
+.coverage.xml
+.pytest_cache/
+.tox/
+.nox/
+test-results/
+junit.xml
+
+# ==================== ENVIRONMENT ====================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# ==================== DOCKER ====================
+docker-compose.override.yml
+
+# ==================== LARGE/BINARY FILES ====================
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.mp4
+*.avi
+*.mov
+*.mp3
+*.wav
+
+# ==================== EXCEPTIONS - KEEP THESE ====================
+!README.md
+!LICENSE
+!CHANGELOG.md
+!CONTRIBUTING.md
+!pyproject.toml
+!setup.py
+!setup.cfg
+!requirements.txt
+!requirements-dev.txt
+!Cargo.toml
+!rust-toolchain.toml
+!_haske_core.pyd
+
+# Keep directory structures but ignore their contents
+!examples/
+# examples/*/
+!benchmarks/
+benchmarks/*/
+!haske-core/
+haske-core/*/
+!haske-python/
+haske-python/*/
+!tests/
+tests/*/
+
+# Allow source files
+!*.rs
+!*.py
+!*.toml
+!*.yml
+!*.yaml
+!*.md
+!*.txt
+!*.html
+!*.css
+!*.js
+!*.json
+!*.whl
+
+# Allow specific directories content
+!**/templates/**
+!**/static/**
+!**/src/**
+!**/scripts/**
