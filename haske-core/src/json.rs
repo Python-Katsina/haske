@@ -1,90 +1,102 @@
-use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use anyhow::Result;
 use serde_json::Value;
 
-#[cfg(feature = "simd")]
-use simd_json;
+#[cfg(feature = "python-handlers")]
+use pyo3::prelude::*;
+#[cfg(feature = "python-handlers")]
+use pyo3::types::{PyDict, PyList};
 
-#[pyfunction]
-pub fn json_loads_bytes(py: Python<'_>, data: Py<PyBytes>) -> PyResult<Option<PyObject>> {
-    // PyO3 0.26: bind before accessing bytes
-    let buf = data.bind(py).as_bytes();
+/// Parse JSON bytes into serde_json::Value.
+pub fn parse_json_bytes(data: &[u8]) -> Result<Value> {
+    Ok(serde_json::from_slice(data)?)
+}
 
-    // Try to parse using simd-json if enabled, otherwise serde_json
-    #[cfg(feature = "simd")]
-    let maybe_v = {
-        let mut copied = buf.to_vec();
-        simd_json::to_owned_value(&mut copied).ok()
-    };
-
-    #[cfg(not(feature = "simd"))]
-    let maybe_v = serde_json::from_slice::<Value>(buf).ok();
-
-    if let Some(v) = maybe_v {
-        // Convert Value -> string -> Python object via json.loads
-        match serde_json::to_string(&v) {
-            Ok(s) => {
-                let json_mod = py.import("json")?;
-                let loads = json_mod.getattr("loads")?;
-                let obj = loads.call1((s,))?;          // Bound<'py, PyAny>
-                Ok(Some(obj.unbind()))                 // -> PyObject (Py<PyAny>)
+/// Convert serde_json::Value -> PyObject WITHOUT serializing to string.
+#[cfg(feature = "python-handlers")]
+pub fn serde_value_to_py(py: Python, v: &Value) -> PyObject {
+    match v {
+        Value::Null => py.None(),
+        Value::Bool(b) => b.into_py(py),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                i.into_py(py)
+            } else if let Some(u) = n.as_u64() {
+                u.into_py(py)
+            } else {
+                n.as_f64().unwrap().into_py(py)
             }
-            Err(e) => Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
-                "serialize error: {}",
-                e
-            ))),
         }
-    } else {
-        Ok(None)
+        Value::String(s) => s.into_py(py),
+        Value::Array(arr) => {
+            let list = PyList::empty(py);
+            for item in arr {
+                list.append(serde_value_to_py(py, item)).unwrap();
+            }
+            list.into_py(py)
+        }
+        Value::Object(map) => {
+            let dict = PyDict::new(py);
+            for (k, val) in map {
+                dict.set_item(k, serde_value_to_py(py, val)).unwrap();
+            }
+            dict.into_py(py)
+        }
     }
 }
 
-#[pyfunction]
-pub fn json_dumps_obj(py: Python<'_>, obj: PyObject) -> PyResult<Option<String>> {
-    // Use Python's json.dumps for generic PyObject -> JSON string
-    let json_mod = py.import("json")?;
-    let dumps = json_mod.getattr("dumps")?;
-    let res = dumps.call1((obj.bind(py),))?; // bind PyObject for the call
-    let s: String = res.extract()?;
-    Ok(Some(s))
+/// Convert Python object into serde_json::Value (basic conversion).
+#[cfg(feature = "python-handlers")]
+pub fn py_to_serde_value(py: Python, obj: &pyo3::PyAny) -> Result<Value, pyo3::PyErr> {
+    if obj.is_none() {
+        return Ok(Value::Null);
+    }
+
+    if let Ok(b) = obj.extract::<bool>() {
+        return Ok(Value::Bool(b));
+    }
+    if let Ok(i) = obj.extract::<i64>() {
+        return Ok(Value::Number(i.into()));
+    }
+    if let Ok(f) = obj.extract::<f64>() {
+        return Ok(serde_json::Number::from_f64(f)
+            .map(Value::Number)
+            .unwrap_or(Value::Null));
+    }
+    if let Ok(s) = obj.extract::<String>() {
+        return Ok(Value::String(s));
+    }
+    if let Ok(bytes) = obj.extract::<Vec<u8>>() {
+        return Ok(Value::String(base64::engine::general_purpose::STANDARD.encode(bytes)));
+    }
+    if let Ok(seq) = obj.downcast::<PyList>() {
+        let mut arr = Vec::with_capacity(seq.len());
+        for item in seq.iter() {
+            arr.push(py_to_serde_value(py, item)?);
+        }
+        return Ok(Value::Array(arr));
+    }
+    if let Ok(dict) = obj.downcast::<PyDict>() {
+        let mut map = serde_json::Map::new();
+        for (k, v) in dict.items() {
+            let key = k.extract::<String>()?;
+            map.insert(key, py_to_serde_value(py, v)?);
+        }
+        return Ok(Value::Object(map));
+    }
+
+    Ok(Value::String(obj.str()?.to_str()?.to_string()))
 }
 
-/// Fast JSON validation without full parsing
+#[cfg(feature = "python-handlers")]
 #[pyfunction]
-pub fn json_is_valid(data: &[u8]) -> bool {
-    #[cfg(feature = "simd")]
-    {
-        let mut copied = data.to_vec();
-        simd_json::to_owned_value(&mut copied).is_ok()
-    }
-
-    #[cfg(not(feature = "simd"))]
-    {
-        serde_json::from_slice::<Value>(data).is_ok()
-    }
+fn loads(py: Python, data: &[u8]) -> PyResult<PyObject> {
+    let v: Value = parse_json_bytes(data).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+    Ok(serde_value_to_py(py, &v))
 }
 
-/// Extract specific top-level field from JSON without full parsing result exposure
-#[pyfunction]
-pub fn json_extract_field(data: &[u8], field: &str) -> PyResult<Option<String>> {
-    #[cfg(feature = "simd")]
-    {
-        let mut copied = data.to_vec();
-        if let Ok(mut value) = simd_json::to_owned_value(&mut copied) {
-            if let Some(field_value) = value.get_mut(field) {
-                return Ok(Some(field_value.to_string()));
-            }
-        }
-    }
-
-    #[cfg(not(feature = "simd"))]
-    {
-        if let Ok(value) = serde_json::from_slice::<Value>(data) {
-            if let Some(field_value) = value.get(field) {
-                return Ok(Some(field_value.to_string()));
-            }
-        }
-    }
-
-    Ok(None)
+#[cfg(feature = "python-handlers")]
+#[pymodule]
+fn haske_json(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(pyo3::wrap_pyfunction!(loads, m)?)?;
+    Ok(())
 }

@@ -1,48 +1,73 @@
-use moka::sync::Cache;
-use pyo3::prelude::*;
+use dashmap::DashMap;
+use std::time::{Instant, Duration};
+use std::sync::Arc;
+use tokio::task;
 
-#[pyclass]
-pub struct HaskeCache {
-    inner: Cache<String, String>,
+#[derive(Clone)]
+pub struct CacheValue {
+    pub expires: Option<Instant>,
+    pub bytes: Vec<u8>,
 }
 
-#[pymethods]
-impl HaskeCache {
-    #[new]
-    pub fn new(max_capacity: u64, time_to_live: u64) -> Self {
-        let cache = Cache::builder()
-            .max_capacity(max_capacity)
-            .time_to_live(std::time::Duration::from_secs(time_to_live))
-            .build();
-        Self { inner: cache }
+#[derive(Clone)]
+pub struct SimpleCache {
+    map: Arc<DashMap<String, CacheValue>>,
+}
+
+impl SimpleCache {
+    pub fn new() -> Self {
+        let c = Self { map: Arc::new(DashMap::new()) };
+        let m = c.map.clone();
+        task::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(5));
+            loop {
+                interval.tick().await;
+                let now = Instant::now();
+                let expired: Vec<String> = m
+                    .iter()
+                    .filter_map(|kv| {
+                        if let Some(ex) = kv.value().expires {
+                            if ex <= now {
+                                Some(kv.key().clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                for k in expired {
+                    m.remove(&k);
+                }
+            }
+        });
+        c
     }
 
-    pub fn get(&self, key: &str) -> Option<String> {
-        self.inner.get(key)
+    pub fn set(&self, key: String, bytes: Vec<u8>, ttl: Option<Duration>) {
+        let expires = ttl.map(|t| Instant::now() + t);
+        self.map.insert(key, CacheValue { expires, bytes });
     }
 
-    pub fn insert(&self, key: &str, value: &str) {
-        self.inner.insert(key.to_string(), value.to_string());
+    pub fn get(&self, key: &str) -> Option<Vec<u8>> {
+        self.map.get(key).map(|v| v.bytes.clone())
     }
 
     pub fn remove(&self, key: &str) {
-        self.inner.invalidate(key);
+        self.map.remove(key);
     }
 
     pub fn clear(&self) {
-        self.inner.invalidate_all();
+        self.map.clear();
     }
 
     pub fn len(&self) -> usize {
-        self.inner.entry_count() as usize
+        self.map.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.inner.entry_count() == 0
+        self.map.is_empty()
     }
-}
-
-#[pyfunction]
-pub fn create_cache(max_capacity: u64, time_to_live: u64) -> PyResult<HaskeCache> {
-    Ok(HaskeCache::new(max_capacity, time_to_live))
 }

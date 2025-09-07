@@ -1,84 +1,72 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-use regex::Regex;
+use parking_lot::RwLock;
+use tera::{Tera, Context};
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+use anyhow::Result;
 
-#[pyfunction]
-pub fn render_template<'py>(
-    py: Python<'py>,
-    template_src: &str,
-    context: Bound<'py, PyDict>,
-) -> PyResult<String> {
-    // First try simple Rust-based template rendering for performance
-    if let Ok(result) = render_simple_template(template_src, &context) {
-        return Ok(result);
-    }
+static TERA_REGISTRY: Lazy<RwLock<HashMap<String, Tera>>> = Lazy::new(|| RwLock::new(HashMap::new()));
 
-    // Fall back to Python jinja2 for complex templates
-    let jinja2 = py.import("jinja2").map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!("jinja2 import error: {}", e))
-    })?;
-    let tmpl_cls = jinja2.getattr("Template").map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!("Template attr error: {}", e))
-    })?;
-    let tmpl = tmpl_cls.call1((template_src,)).map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!("Template compile error: {}", e))
-    })?;
-
-    // Render with context as kwargs
-    let rendered = tmpl
-        .call_method("render", (), Some(&context))
-        .map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(format!("render error: {}", e))
-        })?;
-    let s: String = rendered.extract().map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!(
-            "render result conversion error: {}",
-            e
-        ))
-    })?;
-    Ok(s)
+/// Register templates from a glob (e.g., "templates/**/*") and precompile.
+pub fn register_template_dir(name: &str, glob: &str) -> Result<()> {
+    let mut tera = Tera::new(glob)?;
+    tera.build_inheritance_chains()?;
+    TERA_REGISTRY.write().insert(name.to_string(), tera);
+    Ok(())
 }
 
-/// Simple Rust-based template rendering for common cases
-fn render_simple_template(template_src: &str, context: &Bound<'_, PyDict>) -> PyResult<String> {
-    let mut result = template_src.to_string();
-
-    // Handle simple {{ variable }} substitutions
-    let re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}").unwrap();
-
-    for cap in re.captures_iter(template_src) {
-        if let Some(var_name) = cap.get(1) {
-            let var_name = var_name.as_str();
-            if let Ok(Some(value)) = context.get_item(var_name) {
-                let value_str = value.str()?.to_cow()?.to_string();
-                result = result.replace(&cap[0], &value_str);
-            }
-        }
-    }
-
-    Ok(result)
-}
-
-/// Pre-compile templates for better performance
-#[pyfunction]
-pub fn precompile_template(template_src: &str) -> PyResult<String> {
-    // Simple template validation and optimization
-    if template_src.contains("{%") || template_src.contains("{#") {
-        // Complex template that needs Jinja2
-        Ok(template_src.to_string())
+/// Render template using a registered registry name. Falls back to temporary engine if not registered.
+pub fn render(name: &str, tpl: &str, ctx: &Context) -> Result<String> {
+    if let Some(tera) = TERA_REGISTRY.read().get(name) {
+        Ok(tera.render(tpl, ctx)?)
     } else {
-        // Simple template that can be optimized
-        let re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}").unwrap();
-        let mut optimized = template_src.to_string();
-
-        // Replace variables with placeholders for faster rendering
-        for cap in re.captures_iter(template_src) {
-            if let Some(var_name) = cap.get(1) {
-                let placeholder = format!("__HASKE_VAR_{}__", var_name.as_str());
-                optimized = optimized.replace(&cap[0], &placeholder);
-            }
-        }
-
-        Ok(optimized)
+        let mut t = Tera::default();
+        t.add_raw_template(tpl, tpl)?;
+        Ok(t.render(tpl, ctx)?)
     }
+}
+
+#[cfg(feature = "python-handlers")]
+use pyo3::prelude::*;
+#[cfg(feature = "python-handlers")]
+use pyo3::types::PyDict;
+
+#[cfg(feature = "python-handlers")]
+fn py_dict_to_context(_py: Python, d: &PyDict) -> tera::Context {
+    let mut ctx = Context::new();
+    for (k, v) in d.items() {
+        let key = k.extract::<String>().unwrap_or_else(|_| k.str().unwrap().to_str().unwrap().to_string());
+        if v.is_instance_of::<pyo3::types::PyDict>().unwrap_or(false) {
+            ctx.insert(&key, &v.str().unwrap().to_string());
+        } else if let Ok(s) = v.extract::<String>() {
+            ctx.insert(&key, &s);
+        } else if let Ok(i) = v.extract::<i64>() {
+            ctx.insert(&key, &i);
+        } else if let Ok(f) = v.extract::<f64>() {
+            ctx.insert(&key, &f);
+        } else {
+            ctx.insert(&key, &v.str().unwrap().to_string());
+        }
+    }
+    ctx
+}
+
+#[cfg(feature = "python-handlers")]
+#[pyfunction]
+fn register_templates_py(_py: Python, name: &str, glob: &str) -> PyResult<()> {
+    register_template_dir(name, glob).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
+#[cfg(feature = "python-handlers")]
+#[pyfunction]
+fn render_py(_py: Python, name: &str, tpl: &str, ctx: &PyDict) -> PyResult<String> {
+    let context = py_dict_to_context(_py, ctx);
+    render(name, tpl, &context).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
+#[cfg(feature = "python-handlers")]
+#[pymodule]
+fn haske_template(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(pyo3::wrap_pyfunction!(register_templates_py, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(render_py, m)?)?;
+    Ok(())
 }
