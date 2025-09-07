@@ -124,12 +124,17 @@ def auto_install():
         print("⚠ No matching wheels found. Installing Python sources only...")
         setup(
             name="haske",
-            version="0.1.0",
+            version="0.2.0",
             description="High-performance Python web framework with Rust extensions",
             author="Haske Team",
             packages=find_packages(include=['haske', 'haske.*']),
             install_requires=[],
             zip_safe=False,
+            entry_points={
+        "console_scripts": [
+            "haske=haske.cli:cli",  
+        ],
+    },
         )
 
     # Install requirements.txt if available
