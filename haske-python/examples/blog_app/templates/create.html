@@ -1,0 +1,33 @@
+<!-- templates/create.html -->
+{% extends "base.html" %}
+
+{% block title %}Create Post - Haske Blog{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1 class="mb-4">Create New Post</h1>
+        
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/posts">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" required value="{{ title or '' }}">
+            </div>
+            
+            <div class="mb-3">
+                <label for="content" class="form-label">Content</label>
+                <textarea class="form-control" id="content" name="content" rows="10" required>{{ content or '' }}</textarea>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex">
+                <button type="submit" class="btn btn-primary">Create Post</button>
+                <a href="/" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
