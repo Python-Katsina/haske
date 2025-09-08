@@ -10,7 +10,7 @@ path = "src/lib.rs"   # 👈 this line ensures Cargo finds the module
 
 
 [dependencies]
-pyo3 = { version = "0.26", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.26", features = ["extension-module", "auto-initialize", "abi3-py39"] }
 haske-core = { path = "../haske-core" }
 
 [profile.release]

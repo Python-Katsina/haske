@@ -11,4 +11,4 @@ path = "haske-core/src/lib.rs"  # Explicit path
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.26", features = ["extension-module"] }
+pyo3 = { version = "0.26", features = ["extension-module", "abi3-py39"] }
