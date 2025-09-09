@@ -1,10 +1,10 @@
 [package]
 name = "haske-python"
-version = "0.2.0"
+version = "0.2.2"
 edition = "2021"
 
 [lib]
-name = "_haske_core"         # This must match the #[pymodule] name
+name = "haske"         # This must match the #[pymodule] name
 crate-type = ["cdylib"]
 path = "src/lib.rs"   # 👈 this line ensures Cargo finds the module
 
@@ -17,3 +17,9 @@ haske-core = { path = "../haske-core" }
 strip = "symbols"
 lto = true
 
+[package.metadata.maturin]
+# include a Python package named "haske" with files in "python" folder
+# folder structure:
+# project_root/python/haske/__init__.py
+
+python = ["python"]
