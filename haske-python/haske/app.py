@@ -102,7 +102,7 @@ def create_reverse_proxy(
         path = request.url.path
         # skip excluded endpoints → let Starlette/Haske handle them
         if any(path == ep or path.startswith(ep.rstrip("/") + "/") for ep in excluded_endpoints):
-            raise HTTPException(status_code=404)
+            return None
 
         upstream = f"{target_url}{path}"
         if request.url.query:
