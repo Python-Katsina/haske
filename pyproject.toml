@@ -1,11 +1,11 @@
 [build-system]
 # Use a maturin range compatible with modern installations (you reported 1.9.4)
 requires = ["maturin>=1.0,<2.0", "setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+build-backend = "maturin"
 
 [project]
 name = "haske"
-version = "0.2.7"
+version = "0.2.6"
 description = "A high-performance Python web framework with Rust extensions"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -52,12 +52,20 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Python-Katsina/haske-python"
+Homepage = "https://github.com/Python-Katsina/haske"
 Documentation = "https://haske.readthedocs.io"
-Repository = "https://github.com/Python-Katsina/haske-python"
-Changelog = "https://github.com/Python-Katsina/haske-python/releases"
+Repository = "https://github.com/Python-Katsina/haske"
+Changelog = "https://github.com/Python-Katsina/haske/releases"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["haske*"]
+[tool.maturin]
+# This MUST match the python-importable extension module name exported by the crate
+bindings = "pyo3"
+module-name = "haske"
+manifest-path = "haske-core/Cargo.toml"
+
+python-source = "haske-python"
+rustc-args = ["-C", "target-cpu=native"]
+manylinux = "off"
+
+
 

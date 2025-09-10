@@ -1,14 +1,23 @@
-# Cargo.toml (in root directory)
 [package]
-name = "haske-core"
-version = "0.2.1"
+name = "haske"
+version = "0.2.7"
 edition = "2021"
 
-# Explicitly tell Cargo where to find source files
 [lib]
-name = "_haske_core"
-path = "haske-core/src/lib.rs"  # Explicit path
+name = "haske"         # This must match the #[pymodule] name
 crate-type = ["cdylib"]
+path = "haske-python"   # 👈 this line ensures Cargo finds the module
+
 
 [dependencies]
-pyo3 = { version = "0.26", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.26", features = ["extension-module", "auto-initialize", "abi3-py39"] }
+haske-core = { path = "haske-core" }
+
+[profile.release]
+strip = "symbols"
+lto = true
+
+[package.metadata.maturin]
+# include a Python package named "haske" with files in "python" folder
+# folder structure:
+# project_root/python/haske/__init__.py
