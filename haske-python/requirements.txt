@@ -10,3 +10,4 @@ bcrypt
 itsdangerous
 starlette-csrf
 typer
+watchdog
