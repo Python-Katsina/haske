@@ -38,10 +38,10 @@ try:
 except Exception:
     HAS_RUST_ROUTER = False
 
-<<<<<<< HEAD
+
 # Import templates configuration so we can sync dirs
 from . import templates as templates_module
-=======
+
 # Try to import watchdog for hot reload
 try:
     from watchdog.observers import Observer
@@ -49,7 +49,6 @@ try:
     HAS_WATCHDOG = True
 except ImportError:
     HAS_WATCHDOG = False
->>>>>>> 99892b4cefc94f376578ef782d44acf5e3f0f4c8
 
 
 # --------------------------------------------------------------------------
