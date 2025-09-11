@@ -435,7 +435,7 @@ class Haske:
         abs_path = os.path.abspath(directory)
 
         if not os.path.isdir(abs_path):
-            print(f"[Haske] ⚠️ Static directory not found: {abs_path}. Skipping static mount.")
+            print(f"[Haske] Static directory not found: {abs_path}. Skipping static mount.")
             return
 
         # Update configured static_dir to resolved absolute path
@@ -632,7 +632,7 @@ class Haske:
         port = find_free_port_for_app(choosen_port)
 
         if choosen_port != port:
-            print(f"""⚠️ Port {choosen_port} not available. Using port {port} instead.\n
+            print(f"""Port {choosen_port} not available. Using port {port} instead.\n
             You can change this by adding your preferred port """)
 
         # Setup hot reload if enabled and in debug mode
@@ -650,10 +650,10 @@ class Haske:
                 self.starlette_app.shutdown = shutdown_with_cleanup
                 
             except ImportError:
-                print("⚠️ [Haske] watchdog not installed. Hot reload disabled.")
+                print("[Haske] watchdog not installed. Hot reload disabled.")
                 print("   Install with: pip install watchdog")
             except Exception as e:
-                print(f"⚠️ [Haske] Failed to setup hot reload: {e}")
+                print(f"[Haske] Failed to setup hot reload: {e}")
 
         if debug:
             frame = inspect.currentframe()

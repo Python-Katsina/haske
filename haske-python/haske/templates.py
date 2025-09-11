@@ -66,11 +66,11 @@ def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None
 
         # Ensure directories exist
         if not os.path.isdir(abs_template):
-            print(f"[Haske] ⚠️ Templates directory not found: {abs_template}, creating it.")
+            print(f"[Haske] Templates directory not found: {abs_template}, creating it.")
             os.makedirs(abs_template, exist_ok=True)
 
         if not os.path.isdir(abs_static):
-            print(f"[Haske] ⚠️ Static directory not found: {abs_static}, creating it.")
+            print(f"[Haske] Static directory not found: {abs_static}, creating it.")
             os.makedirs(abs_static, exist_ok=True)
 
         # Init Jinja2 env
@@ -83,8 +83,8 @@ def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None
         # Inject static_url helper
         _env.globals["static_url"] = lambda filename: f"/static/{filename}"
 
-        print(f"[Haske] ✅ Using templates from: {abs_template}")
-        print(f"[Haske] ✅ Static files served from: {abs_static}")
+        print(f"[Haske] Using templates from: {abs_template}")
+        print(f"[Haske] Static files served from: {abs_static}")
 
     return _env
 
