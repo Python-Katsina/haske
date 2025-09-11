@@ -40,6 +40,7 @@ dependencies = [
   "httpx>=0.24.0",
   "itsdangerous>=2.1.0",
   "haske-core",
+  "watchdog",
 ]
 
 [project.optional-dependencies]
