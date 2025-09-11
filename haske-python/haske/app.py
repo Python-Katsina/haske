@@ -38,6 +38,10 @@ try:
 except Exception:
     HAS_RUST_ROUTER = False
 
+<<<<<<< HEAD
+# Import templates configuration so we can sync dirs
+from . import templates as templates_module
+=======
 # Try to import watchdog for hot reload
 try:
     from watchdog.observers import Observer
@@ -45,6 +49,7 @@ try:
     HAS_WATCHDOG = True
 except ImportError:
     HAS_WATCHDOG = False
+>>>>>>> 99892b4cefc94f376578ef782d44acf5e3f0f4c8
 
 
 # --------------------------------------------------------------------------
@@ -57,6 +62,7 @@ def find_free_port() -> int:
     port = s.getsockname()[1]
     s.close()
     return port
+
 
 def find_free_port_for_app(start_port: int) -> int:
     """Find the next available port starting from start_port."""
@@ -139,7 +145,7 @@ def create_reverse_proxy(
 
     return Starlette(routes=[
         Route("/{path:path}", endpoint=proxy_endpoint,
-              methods=["GET","POST","PUT","DELETE","PATCH","OPTIONS","HEAD"])
+              methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     ])
 
 
@@ -182,13 +188,25 @@ class Haske:
     Main Haske application class with integrated frontend support.
     """
 
-    def __init__(self, name: str = "haske") -> None:
+    def __init__(
+        self,
+        name: str = "haske",
+        template_dir: str = "templates",
+        static_dir: str = "static",
+    ) -> None:
         self.name = name
         self.routes: List = []
         self.middleware_stack: List = []
         self.starlette_app: Optional[Starlette] = None
         self.start_time = time.time()
-        self.registered_routes = []
+        self.registered_routes: List[str] = []
+
+        # Template/static directories (user-configurable)
+        self.template_dir = template_dir or "templates"
+        self.static_dir = static_dir or "static"
+
+        # Ensure templates module knows about these directories
+        templates_module.configure_templates(self.template_dir, self.static_dir)
 
         # Rust router (optional)
         self._rust_router = RustRouter() if HAS_RUST_ROUTER else None
@@ -217,6 +235,14 @@ class Haske:
         )
         # THEN add other middleware
         self.middleware(GZipMiddleware, minimum_size=500)
+
+        # Auto-register default static mount (if directory exists)
+        # Use absolute path to avoid WSGI/cwd issues
+        try:
+            self.static(path="/static", directory=self.static_dir, name="static")
+        except Exception:
+            # static() will print helpful message if directory missing
+            pass
 
     def cors(self, **kwargs):
         self.middleware(CORSMiddleware, **kwargs)
@@ -397,8 +423,29 @@ class Haske:
     def mount(self, path: str, app: Any, name: str = None):
         self.routes.append(Mount(path, app=app, name=name))
 
-    def static(self, path: str = "/static", directory: str = "static", name: str = None):
-        self.routes.append(Mount(path, app=StaticFiles(directory=directory), name=name))
+    def static(self, path: str = "/static", directory: str = None, name: str = None):
+        """
+        Mount static files directory. Defaults to the app's configured static_dir.
+        directory may be relative or absolute. We resolve to absolute path.
+        If the directory does not exist we print a warning and skip mounting.
+        """
+        directory = directory or self.static_dir
+        # If directory is inside the package (e.g. "static"), make it absolute relative to project root
+        # Allow user to pass absolute path as well.
+        abs_path = os.path.abspath(directory)
+
+        if not os.path.isdir(abs_path):
+            print(f"[Haske] ⚠️ Static directory not found: {abs_path}. Skipping static mount.")
+            return
+
+        # Update configured static_dir to resolved absolute path
+        self.static_dir = abs_path
+        # Keep template module in sync
+        templates_module.configure_templates(self.template_dir, self.static_dir)
+
+        # Append mount and keep mounts ordered to end
+        self.routes.append(Mount(path, app=StaticFiles(directory=abs_path), name=name or "static"))
+        print(f"[Haske] ✅ Serving static from: {abs_path} at {path}")
 
     # ---------------------------
     # RESPONSE HANDLING
@@ -514,6 +561,9 @@ class Haske:
     # STARLETTE APP
     # ---------------------------
     def build(self) -> Starlette:
+        # Re-order mounts to ensure API routes first, then mounts
+        # (This will not duplicate mounts if build is called multiple times.)
+        # Create Starlette app with the current routes & middleware
         self.starlette_app = Starlette(
             debug=os.getenv("HASKE_DEBUG", "False").lower() == "true",
             routes=self.routes,
@@ -628,4 +678,4 @@ class Haske:
             try:
                 uvicorn.run(self, host=host, port=port, reload=False, **kwargs)
             except Exception:
-                uvicorn.run(self, host=host, port=port+1, reload=False, **kwargs)
+                uvicorn.run(self, host=host, port=port+1, reload=debug, **kwargs)

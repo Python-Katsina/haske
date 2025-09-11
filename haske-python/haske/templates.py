@@ -2,201 +2,167 @@
 """
 Template rendering utilities for Haske framework.
 
-This module provides Jinja2 template rendering with Rust acceleration
-for improved performance and additional template utilities.
+This module provides Jinja2 template rendering with optional Rust
+acceleration for improved performance, as well as utilities for
+managing template and static directories.
 """
 
-from typing import Dict, Any, Optional
+import os
+from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-# Import Rust template functions if available
+# Try loading Rust-powered template functions
 try:
     from _haske_core import render_template as rust_render_template, precompile_template
     HAS_RUST_TEMPLATES = True
 except ImportError:
     HAS_RUST_TEMPLATES = False
 
-_env = None  # global Jinja2 environment
 
-def get_env(directory: str = "templates") -> Environment:
+# Globals
+_env: Optional[Environment] = None
+_template_dir: str = "templates"
+_static_dir: str = "static"
+
+
+# ---------------------------
+# CONFIGURATION
+# ---------------------------
+def configure_templates(template_dir: str = "templates", static_dir: str = "static"):
+    """
+    Configure global template + static directories.
+
+    Args:
+        template_dir: Path to templates directory
+        static_dir: Path to static directory
+    """
+    global _template_dir, _static_dir, _env
+    _template_dir = template_dir or "templates"
+    _static_dir = static_dir or "static"
+    _env = None  # reset env, will re-init on next get_env()
+
+
+def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None) -> Environment:
     """
     Get or create Jinja2 environment.
-    
+
     Args:
-        directory: Templates directory, defaults to "templates"
-        
+        template_dir: Override templates directory
+        static_dir: Override static directory
+
     Returns:
-        Environment: Jinja2 environment instance
+        Environment: Configured Jinja2 environment
     """
-    global _env
+    global _env, _template_dir, _static_dir
+
+    if template_dir:
+        _template_dir = template_dir
+    if static_dir:
+        _static_dir = static_dir
+
     if _env is None:
+        abs_template = os.path.abspath(_template_dir)
+        abs_static = os.path.abspath(_static_dir)
+
+        # Ensure directories exist
+        if not os.path.isdir(abs_template):
+            print(f"[Haske] ⚠️ Templates directory not found: {abs_template}, creating it.")
+            os.makedirs(abs_template, exist_ok=True)
+
+        if not os.path.isdir(abs_static):
+            print(f"[Haske] ⚠️ Static directory not found: {abs_static}, creating it.")
+            os.makedirs(abs_static, exist_ok=True)
+
+        # Init Jinja2 env
         _env = Environment(
-            loader=FileSystemLoader(directory),
+            loader=FileSystemLoader(abs_template),
             autoescape=select_autoescape(["html", "xml"]),
-            enable_async=True
+            enable_async=True,
         )
+
+        # Inject static_url helper
+        _env.globals["static_url"] = lambda filename: f"/static/{filename}"
+
+        print(f"[Haske] ✅ Using templates from: {abs_template}")
+        print(f"[Haske] ✅ Static files served from: {abs_static}")
+
     return _env
 
+
+# ---------------------------
+# TEMPLATE ENGINE CLASS
+# ---------------------------
 class TemplateEngine:
     """
     Template engine with Rust acceleration and precompilation.
-    
-    Provides template rendering with performance optimizations
-    through Rust acceleration and template precompilation.
-    
-    Attributes:
-        env: Jinja2 environment
-        _precompiled_templates: Cache of precompiled templates
     """
-    
-    def __init__(self, directory: str = "templates"):
-        """
-        Initialize template engine.
-        
-        Args:
-            directory: Templates directory, defaults to "templates"
-        """
-        self.env = get_env(directory)
+
+    def __init__(self, directory: str = None, static_dir: str = None):
+        self.env = get_env(directory or _template_dir, static_dir or _static_dir)
         self._precompiled_templates = {}
 
     def get_template(self, name: str):
-        """
-        Get template by name.
-        
-        Args:
-            name: Template name
-            
-        Returns:
-            Template: Jinja2 template instance
-        """
+        """Return Jinja2 template object by name."""
         return self.env.get_template(name)
 
     async def TemplateResponse(self, template_name: str, context: dict):
-        """
-        Create a template response.
-        
-        Args:
-            template_name: Template name
-            context: Template context
-            
-        Returns:
-            HTMLResponse: Rendered template response
-        """
+        """Render template into an HTMLResponse."""
         from .response import HTMLResponse
         template = self.get_template(template_name)
         content = await template.render_async(**context)
         return HTMLResponse(content)
 
     def precompile(self, template_name: str) -> str:
-        """
-        Precompile template for faster rendering.
-        
-        Args:
-            template_name: Template name
-            
-        Returns:
-            str: Precompiled template source
-            
-        Note:
-            Stores precompiled version for future use
-        """
+        """Precompile template source (optionally Rust-accelerated)."""
         template = self.get_template(template_name)
         source = template.source
-        
+
         if HAS_RUST_TEMPLATES:
             precompiled = precompile_template(source)
         else:
-            # Fallback - just return the source
             precompiled = source
-        
-        # Store precompiled version
+
         self._precompiled_templates[template_name] = precompiled
         return precompiled
 
     async def render_precompiled(self, template_name: str, context: dict) -> str:
-        """
-        Render precompiled template.
-        
-        Args:
-            template_name: Template name
-            context: Template context
-            
-        Returns:
-            str: Rendered template content
-            
-        Note:
-            Falls back to Jinja2 if Rust rendering fails
-        """
+        """Render precompiled template with fallback to Jinja2."""
         if template_name not in self._precompiled_templates:
             self.precompile(template_name)
-        
+
         precompiled = self._precompiled_templates[template_name]
-        
-        # Try Rust rendering first
+
         if HAS_RUST_TEMPLATES:
             try:
                 result = rust_render_template(precompiled, context)
                 if result:
                     return result
             except Exception:
-                # Fall back to Jinja2
-                pass
-        
-        # Fall back to standard rendering
+                pass  # Fallback below
+
         template = self.get_template(template_name)
         return await template.render_async(**context)
 
-# --- Flask-style helper ---
+
+# ---------------------------
+# FLASK-STYLE HELPERS
+# ---------------------------
 def render_template(template_name: str, **context) -> str:
-    """
-    Direct helper to render template and return HTML string.
-    
-    Args:
-        template_name: Template name
-        **context: Template context variables
-        
-    Returns:
-        str: Rendered HTML content
-        
-    Example:
-        >>> html = render_template("index.html", title="Home", user=user)
-    """
-    env = get_env()
+    """Synchronous template render, returns HTML string."""
+    env = get_env(_template_dir, _static_dir)
     template = env.get_template(template_name)
     return template.render(**context)
 
+
 async def render_template_async(template_name: str, **context) -> str:
-    """
-    Async version of render_template.
-    
-    Args:
-        template_name: Template name
-        **context: Template context variables
-        
-    Returns:
-        str: Rendered HTML content
-        
-    Example:
-        >>> html = await render_template_async("index.html", title="Home")
-    """
-    env = get_env()
+    """Asynchronous template render, returns HTML string."""
+    env = get_env(_template_dir, _static_dir)
     template = env.get_template(template_name)
     return await template.render_async(**context)
 
+
 def template_response(template_name: str, **context):
-    """
-    Create a TemplateResponse directly.
-    
-    Args:
-        template_name: Template name
-        **context: Template context variables
-        
-    Returns:
-        HTMLResponse: Template response object
-        
-    Example:
-        >>> return template_response("index.html", title="Home")
-    """
+    """Render template directly into an HTMLResponse."""
     from .response import HTMLResponse
     content = render_template(template_name, **context)
     return HTMLResponse(content)
