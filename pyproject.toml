@@ -5,7 +5,7 @@ build-backend = "maturin"
 
 [project]
 name = "haske"
-version = "0.2.6"
+version = "0.2.7"
 description = "A high-performance Python web framework with Rust extensions"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -60,7 +60,7 @@ Changelog = "https://github.com/Python-Katsina/haske/releases"
 [tool.maturin]
 # This MUST match the python-importable extension module name exported by the crate
 bindings = "pyo3"
-module-name = "haske"
+module-name = "_haske_core"
 manifest-path = "haske-core/Cargo.toml"
 
 python-source = "haske-python"
