@@ -16,9 +16,6 @@ import signal
 import threading
 import shlex
 import socket
-import sys
-import asyncio
-import importlib
 from pathlib import Path
 from typing import Any, Callable, Awaitable, Dict, List, Optional
 
@@ -38,17 +35,8 @@ try:
 except Exception:
     HAS_RUST_ROUTER = False
 
-
 # Import templates configuration so we can sync dirs
 from . import templates as templates_module
-
-# Try to import watchdog for hot reload
-try:
-    from watchdog.observers import Observer
-    from watchdog.events import FileSystemEventHandler
-    HAS_WATCHDOG = True
-except ImportError:
-    HAS_WATCHDOG = False
 
 
 # --------------------------------------------------------------------------
@@ -117,7 +105,7 @@ def create_reverse_proxy(
         path = request.url.path
         # skip excluded endpoints → let Starlette/Haske handle them
         if any(path == ep or path.startswith(ep.rstrip("/") + "/") for ep in excluded_endpoints):
-            return None
+            raise HTTPException(status_code=404)
 
         upstream = f"{target_url}{path}"
         if request.url.query:
@@ -146,37 +134,6 @@ def create_reverse_proxy(
         Route("/{path:path}", endpoint=proxy_endpoint,
               methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     ])
-
-
-# --------------------------------------------------------------------------
-# Hot reload handler class
-# --------------------------------------------------------------------------
-if HAS_WATCHDOG:
-    class BackendFileChangeHandler(FileSystemEventHandler):
-        """Handler for backend file changes to trigger hot reload"""
-        
-        def __init__(self, app_instance, patterns=None):
-            self.app = app_instance
-            self.patterns = patterns or ["*.py"]
-            self.last_reload = time.time()
-            self.reload_cooldown = 1.0  # seconds between reloads
-            
-        def on_modified(self, event):
-            if not any(event.src_path.endswith(pattern) for pattern in self.patterns):
-                return
-                
-            current_time = time.time()
-            if current_time - self.last_reload < self.reload_cooldown:
-                return
-                
-            self.last_reload = current_time
-            print(f"\n🔄 [Haske] Detected change in {event.src_path}, triggering reload...")
-            
-            # Schedule reload in the event loop
-            if hasattr(self.app, '_reload_task') and not self.app._reload_task.done():
-                self.app._reload_task.cancel()
-            
-            self.app._reload_task = asyncio.create_task(self.app._trigger_reload())
 
 
 # --------------------------------------------------------------------------
@@ -217,13 +174,6 @@ class Haske:
         self._frontend_dev_url: Optional[str] = None
         self._frontend_shutdown_cb = None
 
-        # Hot reload state
-        self._reload_observer = None
-        self._reload_patterns = ["*.py"]
-        self._reload_task = None
-        self._reload_lock = asyncio.Lock()
-        self._original_modules = set(sys.modules.keys())
-
         # DEFAULT MIDDLEWARE - CORS FIRST!
         self.middleware(
             CORSMiddleware,
@@ -236,11 +186,9 @@ class Haske:
         self.middleware(GZipMiddleware, minimum_size=500)
 
         # Auto-register default static mount (if directory exists)
-        # Use absolute path to avoid WSGI/cwd issues
         try:
             self.static(path="/static", directory=self.static_dir, name="static")
         except Exception:
-            # static() will print helpful message if directory missing
             pass
 
     def cors(self, **kwargs):
@@ -295,9 +243,6 @@ class Haske:
     # FRONTEND (production & development)
     # ---------------------------
     def setup_frontend(self, config: Optional[Dict] = None, mode: Optional[str] = None):
-        """
-        Configure frontend serving (production static OR development proxy).
-        """
         self._frontend_config = config or {}
         self._frontend_mode = (mode or self._frontend_config.get("mode") or "").lower() or None
 
@@ -423,28 +368,18 @@ class Haske:
         self.routes.append(Mount(path, app=app, name=name))
 
     def static(self, path: str = "/static", directory: str = None, name: str = None):
-        """
-        Mount static files directory. Defaults to the app's configured static_dir.
-        directory may be relative or absolute. We resolve to absolute path.
-        If the directory does not exist we print a warning and skip mounting.
-        """
         directory = directory or self.static_dir
-        # If directory is inside the package (e.g. "static"), make it absolute relative to project root
-        # Allow user to pass absolute path as well.
         abs_path = os.path.abspath(directory)
 
         if not os.path.isdir(abs_path):
             print(f"[Haske] Static directory not found: {abs_path}. Skipping static mount.")
             return
 
-        # Update configured static_dir to resolved absolute path
         self.static_dir = abs_path
-        # Keep template module in sync
         templates_module.configure_templates(self.template_dir, self.static_dir)
 
-        # Append mount and keep mounts ordered to end
         self.routes.append(Mount(path, app=StaticFiles(directory=abs_path), name=name or "static"))
-        print(f"[Haske] ✅ Serving static from: {abs_path} at {path}")
+        print(f"[Haske] Serving static from: {abs_path} at {path}")
 
     # ---------------------------
     # RESPONSE HANDLING
@@ -482,87 +417,9 @@ class Haske:
         return None, None
 
     # ---------------------------
-    # HOT RELOAD FUNCTIONALITY
-    # ---------------------------
-    async def _trigger_reload(self):
-        """Trigger application reload after a short delay"""
-        await asyncio.sleep(0.5)  # Small delay to avoid rapid successive reloads
-        
-        async with self._reload_lock:
-            try:
-                print("🔄 [Haske] Reloading application...")
-                
-                # Clear routes and middleware
-                self.routes.clear()
-                self.middleware_stack.clear()
-                self.registered_routes.clear()
-                
-                # Reload all project modules
-                self._reload_project_modules()
-                
-                # Rebuild the application
-                if self.starlette_app:
-                    self.starlette_app = None
-                self.build()
-                
-                print("✅ [Haske] Application reloaded successfully")
-                
-            except Exception as e:
-                print(f"❌ [Haske] Reload failed: {e}")
-                import traceback
-                traceback.print_exc()
-    
-    def _reload_project_modules(self):
-        """Reload all project modules except standard library and third-party packages"""
-        current_modules = set(sys.modules.keys())
-        new_modules = current_modules - self._original_modules
-        
-        for module_name in list(new_modules):
-            if (module_name.startswith('__') or 
-                module_name.startswith('_') or
-                any(module_name.startswith(lib) for lib in ['uvicorn', 'starlette', 'asyncio', 'os', 'sys', 'time'])):
-                continue
-                
-            try:
-                module = sys.modules[module_name]
-                importlib.reload(module)
-                print(f"   ↳ Reloaded module: {module_name}")
-            except Exception as e:
-                print(f"   ↳ Failed to reload {module_name}: {e}")
-    
-    def _setup_hot_reload(self, watch_patterns=None, watch_directories=None):
-        """Set up file watching for hot reload"""
-        if self._reload_observer or not HAS_WATCHDOG:
-            return
-            
-        patterns = watch_patterns or self._reload_patterns
-        directories = watch_directories or ['.']
-        
-        self._reload_observer = Observer()
-        event_handler = BackendFileChangeHandler(self, patterns)
-        
-        for directory in directories:
-            if Path(directory).exists():
-                self._reload_observer.schedule(event_handler, directory, recursive=True)
-                print(f"[Haske] Watching {directory} for changes")
-        
-        self._reload_observer.start()
-        print("[Haske] Hot reload enabled - watching for backend changes")
-    
-    def _stop_hot_reload(self):
-        """Stop the file watcher"""
-        if self._reload_observer:
-            self._reload_observer.stop()
-            self._reload_observer.join()
-            self._reload_observer = None
-
-    # ---------------------------
     # STARLETTE APP
     # ---------------------------
     def build(self) -> Starlette:
-        # Re-order mounts to ensure API routes first, then mounts
-        # (This will not duplicate mounts if build is called multiple times.)
-        # Create Starlette app with the current routes & middleware
         self.starlette_app = Starlette(
             debug=os.getenv("HASKE_DEBUG", "False").lower() == "true",
             routes=self.routes,
@@ -611,19 +468,7 @@ class Haske:
     # ---------------------------
     # RUN
     # ---------------------------
-    def run(self, host: str = "0.0.0.0", choosen_port: int = 8000, debug: bool = False, 
-            hot_reload: bool = True, watch_dirs: List[str] = None, **kwargs):
-        """
-        Run the Haske application with optional hot reload.
-        
-        Args:
-            host: Host to bind to
-            choosen_port: Preferred port (will find next available if taken)
-            debug: Enable debug mode
-            hot_reload: Enable hot reload for backend changes
-            watch_dirs: Directories to watch for changes (default: current directory)
-            **kwargs: Additional arguments for uvicorn
-        """
+    def run(self, host: str = "0.0.0.0", choosen_port: int = 8000, debug: bool = False, **kwargs):
         if self.starlette_app is None:
             self.build()
 
@@ -631,28 +476,12 @@ class Haske:
         port = find_free_port_for_app(choosen_port)
 
         if choosen_port != port:
-            print(f"""Port {choosen_port} not available. Using port {port} instead.\n
-            You can change this by adding your preferred port """)
+            print(f"[Haske] Port {choosen_port} not available. Using port {port} instead.")
+            print("You can change this by adding your preferred port")
 
-        # Setup hot reload if enabled and in debug mode
-        if debug and hot_reload:
-            try:
-                self._setup_hot_reload(watch_directories=watch_dirs)
-                # Add shutdown handler to stop the observer
-                original_shutdown = getattr(self.starlette_app, 'shutdown', None)
-                
-                async def shutdown_with_cleanup():
-                    self._stop_hot_reload()
-                    if original_shutdown:
-                        await original_shutdown()
-                
-                self.starlette_app.shutdown = shutdown_with_cleanup
-                
-            except ImportError:
-                print("[Haske] watchdog not installed. Hot reload disabled.")
-                print("   Install with: pip install watchdog")
-            except Exception as e:
-                print(f"[Haske] Failed to setup hot reload: {e}")
+        # Prevent duplicate host/port kwargs
+        kwargs.pop("host", None)
+        kwargs.pop("port", None)
 
         if debug:
             frame = inspect.currentframe()
@@ -670,11 +499,9 @@ class Haske:
             finally:
                 del frame
             try:
-                uvicorn.run(import_string, host=host, port=port, reload=hot_reload, log_level="debug", **kwargs)
+                uvicorn.run(import_string, host=host, port=port, reload=True, log_level="debug", **kwargs)
             except Exception:
-                uvicorn.run(self, host=host, port=port+1, reload=hot_reload, log_level="debug", **kwargs)
+                uvicorn.run(self, host=host, port=port + 1, reload=True, log_level="debug", **kwargs)
         else:
-            try:
-                uvicorn.run(self, host=host, port=port, reload=False, **kwargs)
-            except Exception:
-                uvicorn.run(self, host=host, port=port+1, reload=debug, **kwargs)
+            uvicorn.run(self, host=host, port=port, reload=debug, **kwargs)
+           

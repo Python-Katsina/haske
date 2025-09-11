@@ -8,6 +8,7 @@ managing template and static directories.
 """
 
 import os
+import inspect
 from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -29,13 +30,7 @@ _static_dir: str = "static"
 # CONFIGURATION
 # ---------------------------
 def configure_templates(template_dir: str = "templates", static_dir: str = "static"):
-    """
-    Configure global template + static directories.
-
-    Args:
-        template_dir: Path to templates directory
-        static_dir: Path to static directory
-    """
+    """Configure global template + static directories."""
     global _template_dir, _static_dir, _env
     _template_dir = template_dir or "templates"
     _static_dir = static_dir or "static"
@@ -43,16 +38,7 @@ def configure_templates(template_dir: str = "templates", static_dir: str = "stat
 
 
 def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None) -> Environment:
-    """
-    Get or create Jinja2 environment.
-
-    Args:
-        template_dir: Override templates directory
-        static_dir: Override static directory
-
-    Returns:
-        Environment: Configured Jinja2 environment
-    """
+    """Get or create Jinja2 environment."""
     global _env, _template_dir, _static_dir
 
     if template_dir:
@@ -90,12 +76,26 @@ def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None
 
 
 # ---------------------------
+# HELPER: AUTO-INJECT REQUEST
+# ---------------------------
+def _inject_request(context: dict) -> dict:
+    """Ensure `request` is available in context without explicit passing."""
+    if "request" not in context:
+        frame = inspect.currentframe()
+        while frame:
+            local_req = frame.f_locals.get("request")
+            if local_req is not None:
+                context["request"] = local_req
+                break
+            frame = frame.f_back
+    return context
+
+
+# ---------------------------
 # TEMPLATE ENGINE CLASS
 # ---------------------------
 class TemplateEngine:
-    """
-    Template engine with Rust acceleration and precompilation.
-    """
+    """Template engine with Rust acceleration and precompilation."""
 
     def __init__(self, directory: str = None, static_dir: str = None):
         self.env = get_env(directory or _template_dir, static_dir or _static_dir)
@@ -108,6 +108,7 @@ class TemplateEngine:
     async def TemplateResponse(self, template_name: str, context: dict):
         """Render template into an HTMLResponse."""
         from .response import HTMLResponse
+        context = _inject_request(context)
         template = self.get_template(template_name)
         content = await template.render_async(**context)
         return HTMLResponse(content)
@@ -127,6 +128,7 @@ class TemplateEngine:
 
     async def render_precompiled(self, template_name: str, context: dict) -> str:
         """Render precompiled template with fallback to Jinja2."""
+        context = _inject_request(context)
         if template_name not in self._precompiled_templates:
             self.precompile(template_name)
 
@@ -150,6 +152,7 @@ class TemplateEngine:
 def render_template(template_name: str, **context) -> str:
     """Synchronous template render, returns HTML string."""
     env = get_env(_template_dir, _static_dir)
+    context = _inject_request(context)
     template = env.get_template(template_name)
     return template.render(**context)
 
@@ -157,6 +160,7 @@ def render_template(template_name: str, **context) -> str:
 async def render_template_async(template_name: str, **context) -> str:
     """Asynchronous template render, returns HTML string."""
     env = get_env(_template_dir, _static_dir)
+    context = _inject_request(context)
     template = env.get_template(template_name)
     return await template.render_async(**context)
 
@@ -164,5 +168,6 @@ async def render_template_async(template_name: str, **context) -> str:
 def template_response(template_name: str, **context):
     """Render template directly into an HTMLResponse."""
     from .response import HTMLResponse
+    context = _inject_request(context)
     content = render_template(template_name, **context)
     return HTMLResponse(content)
