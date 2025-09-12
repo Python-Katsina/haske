@@ -157,6 +157,9 @@ class Haske:
         self.start_time = time.time()
         self.registered_routes: List[str] = []
 
+        self._startup_handlers: List[Callable[..., Awaitable[Any]]] = []
+        self._shutdown_handlers: List[Callable[..., Awaitable[Any]]] = []
+
         # Template/static directories (user-configurable)
         self.template_dir = template_dir or "templates"
         self.static_dir = static_dir or "static"
@@ -238,6 +241,24 @@ class Haske:
             return func
 
         return decorator
+    
+    def on_startup(self, func: Callable[..., Awaitable[Any]]):
+        """
+        Register a coroutine function to be called on app startup.
+        """
+        self._startup_handlers.append(func)
+        if self.starlette_app:
+            self.starlette_app.add_event_handler("startup", func)
+        return func
+
+    def on_shutdown(self, func: Callable[..., Awaitable[Any]]):
+        """
+        Register a coroutine function to be called on app shutdown.
+        """
+        self._shutdown_handlers.append(func)
+        if self.starlette_app:
+            self.starlette_app.add_event_handler("shutdown", func)
+        return func
 
     # ---------------------------
     # FRONTEND (production & development)
@@ -435,6 +456,12 @@ class Haske:
         )
         if self._frontend_shutdown_cb:
             self.starlette_app.add_event_handler("shutdown", self._frontend_shutdown_cb)
+        
+        for f in self._startup_handlers:
+            self.starlette_app.add_event_handler("startup", f)
+        for f in self._shutdown_handlers:
+            self.starlette_app.add_event_handler("shutdown", f)
+
         return self.starlette_app
 
     async def __call__(self, scope, receive, send) -> None:
