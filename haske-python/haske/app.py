@@ -378,7 +378,10 @@ class Haske:
         self.static_dir = abs_path
         templates_module.configure_templates(self.template_dir, self.static_dir)
 
-        self.routes.append(Mount(path, app=StaticFiles(directory=abs_path), name=name or "static"))
+        # Use mounts but keep them ordered (API routes before mounts) by
+        # calling _reorder_routes so mounts always end up after API routes.
+        new_mount = Mount(path, app=StaticFiles(directory=abs_path), name=name or "static")
+        self._reorder_routes([new_mount])
         print(f"[Haske] Serving static from: {abs_path} at {path}")
 
     # ---------------------------
@@ -420,6 +423,11 @@ class Haske:
     # STARLETTE APP
     # ---------------------------
     def build(self) -> Starlette:
+        # Ensure API routes are ordered before mounts so dynamic routes
+        # (e.g. "/about", "/docs", "/contact") are matched first.
+        self._reorder_routes([])
+
+        # Create Starlette app with the current routes & middleware
         self.starlette_app = Starlette(
             debug=os.getenv("HASKE_DEBUG", "False").lower() == "true",
             routes=self.routes,
@@ -504,4 +512,3 @@ class Haske:
                 uvicorn.run(self, host=host, port=port + 1, reload=True, log_level="debug", **kwargs)
         else:
             uvicorn.run(self, host=host, port=port, reload=debug, **kwargs)
-           
