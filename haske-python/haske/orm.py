@@ -118,6 +118,16 @@ class Pagination:
     def prev_num(self) -> Optional[int]:
         """Number of the previous page or None."""
         return self.page - 1 if self.has_prev else None
+    
+    @property
+    def prev_page(self) -> Optional[int]:
+        """Alias for prev_num, for more natural API."""
+        return self.prev_num
+
+    @property
+    def next_page(self) -> Optional[int]:
+        """Alias for next_num, for more natural API."""
+        return self.next_num
 
     def iter_pages(
         self,
@@ -454,6 +464,41 @@ class AsyncORM:
     def filter_by(self, model: Type[Base], **kwargs) -> List[Any]:
         """Filter by keyword args (sync-friendly)."""
         return _maybe_sync(self._filter_by(model, **kwargs))
+    
+
+    async def _get(self, model: Type[Base], **kwargs) -> Optional[Base]:
+        """
+        Fetch a single record by keyword filters.
+        Example:
+            user = await db._get(User, id=1)
+        """
+        if not self._session_maker:
+            raise RuntimeError("Engine not initialized. Call init_engine(url) first.")
+        async with self._session() as session:
+            stmt = select(model).filter_by(**kwargs).limit(1)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+    def get(self, model: Type[Base], **kwargs) -> Optional[Base]:
+        """Get one row by filter (sync-friendly)."""
+        return _maybe_sync(self._get(model, **kwargs))
+
+    async def _all(self, model: Type[Base]) -> List[Base]:
+        """
+        Fetch all records for a model.
+        Example:
+            users = await db._all(User)
+        """
+        if not self._session_maker:
+            raise RuntimeError("Engine not initialized. Call init_engine(url) first.")
+        async with self._session() as session:
+            stmt = select(model)
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+    def all(self, model: Type[Base]) -> List[Base]:
+        """Get all rows (sync-friendly)."""
+        return _maybe_sync(self._all(model))
 
 
 
