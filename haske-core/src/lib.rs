@@ -50,6 +50,18 @@ fn _haske_core(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // ORM helpers
     m.add_function(wrap_pyfunction!(orm::prepare_query, m)?)?;
     m.add_function(wrap_pyfunction!(orm::prepare_queries, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::build_select_query, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::process_result_set, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::get_connection_from_pool, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::return_connection_to_pool, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::batch_insert, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::optimize_type_conversion, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::build_update_query, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::build_delete_query, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::validate_query_syntax, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::cache_prepared_statement, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::get_cached_statement, m)?)?;
+    m.add_function(wrap_pyfunction!(orm::clear_statement_cache, m)?)?;
 
     // Cache helpers
     m.add_function(wrap_pyfunction!(cache::create_cache, m)?)?;

@@ -21,26 +21,33 @@ ENDPOINTS = [
 ]
 
 # Settings
-CONCURRENCY = 250
-REQUESTS = 1000   # Jimillar requests per endpoint
+CONCURRENCY = 50   # max concurrent requests
+REQUESTS = 1000      # total requests per endpoint
+SEMAPHORE = asyncio.Semaphore(CONCURRENCY)
 
 
 async def fetch(client, url, results):
-    start = time.perf_counter()
-    try:
-        resp = await client.get(url, timeout=10.0)
-        latency = (time.perf_counter() - start) * 1000
-        results.append(("ok", latency))
-    except Exception:
-        latency = (time.perf_counter() - start) * 1000
-        results.append(("err", latency))
+    async with SEMAPHORE:
+        start = time.perf_counter()
+        try:
+            resp = await client.get(url, timeout=50.0)
+            latency = time.perf_counter() - start
+            results.append(("ok", latency))
+        except Exception:
+            latency = time.perf_counter() - start
+            results.append(("err", latency))
 
 
 async def run_benchmark(name, base_url):
     print(f"\n🚀 Benchmarking {name} ...")
     data = {}
 
-    async with httpx.AsyncClient() as client:
+    limits = httpx.Limits(
+        max_connections=CONCURRENCY,
+        max_keepalive_connections=CONCURRENCY
+    )
+
+    async with httpx.AsyncClient(limits=limits) as client:
         for endpoint in ENDPOINTS:
             url = base_url + endpoint
             results = []
@@ -48,8 +55,7 @@ async def run_benchmark(name, base_url):
             start_time = time.perf_counter()
 
             tasks = [fetch(client, url, results) for _ in range(REQUESTS)]
-            for i in range(0, len(tasks), CONCURRENCY):
-                await asyncio.gather(*tasks[i:i+CONCURRENCY])
+            await asyncio.gather(*tasks)
 
             duration = time.perf_counter() - start_time
 
@@ -65,30 +71,42 @@ async def run_benchmark(name, base_url):
                 p90 = latencies[int(0.9 * len(latencies)) - 1]
                 p95 = latencies[int(0.95 * len(latencies)) - 1]
                 p99 = latencies[int(0.99 * len(latencies)) - 1]
+
+                min_latency = min(latencies)
+                max_latency = max(latencies)
+                stdev = statistics.pstdev(latencies)
             else:
                 rps = avg = p50 = p90 = p95 = p99 = 0
+                min_latency = max_latency = stdev = 0
 
             data[endpoint] = {
                 "RPS": round(rps, 2),
-                "Avg": round(avg, 2),
-                "p50": round(p50, 2),
-                "p90": round(p90, 2),
-                "p95": round(p95, 2),
-                "p99": round(p99, 2),
-                "Errors": errors
+                "Avg": round(avg, 4),
+                "p50": round(p50, 4),
+                "p90": round(p90, 4),
+                "p95": round(p95, 4),
+                "p99": round(p99, 4),
+                "Min": round(min_latency, 4),
+                "Max": round(max_latency, 4),
+                "Stdev": round(stdev, 4),
+                "Errors": errors,
+                "Duration": round(duration, 2)
             }
 
     return data
 
 
 def print_table(framework, results):
-    print("="*100)
+    print("=" * 140)
     print(f"Framework: {framework}")
-    print(f"{'Endpoint':<20} {'RPS':<8} {'Avg(ms)':<10} {'p50':<8} {'p90':<8} {'p95':<8} {'p99':<8} {'Errors':<8}")
-    print("-"*100)
+    print(f"{'Endpoint':<20} {'RPS':<8} {'Avg(s)':<10} {'p50':<8} {'p90':<8} "
+          f"{'p95':<8} {'p99':<8} {'Min':<8} {'Max':<8} {'Stdev':<10} {'Errors':<8} {'Dur(s)':<8}")
+    print("-" * 140)
     for ep, s in results.items():
-        print(f"{ep:<20} {s['RPS']:<8} {s['Avg']:<10} {s['p50']:<8} {s['p90']:<8} {s['p95']:<8} {s['p99']:<8} {s['Errors']:<8}")
-    print("="*100)
+        print(f"{ep:<20} {s['RPS']:<8} {s['Avg']:<10} {s['p50']:<8} {s['p90']:<8} "
+              f"{s['p95']:<8} {s['p99']:<8} {s['Min']:<8} {s['Max']:<8} "
+              f"{s['Stdev']:<10} {s['Errors']:<8} {s['Duration']:<8}")
+    print("=" * 140)
 
 
 async def main():
