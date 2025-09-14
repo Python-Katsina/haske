@@ -1,9 +1,6 @@
-# haske/__init__.py
+# haske-python/haske/__init__.py
 """
 Haske - High-performance Python web framework with Rust acceleration.
-
-This package provides a modern, async-first web framework built on Starlette
-with Rust-powered performance optimizations for critical paths.
 """
 
 from .app import Haske
@@ -21,6 +18,7 @@ from .routing import Route, PathConverter, IntConverter, FloatConverter, UUIDCon
 from .cli import cli
 from .cache import Cache, get_default_cache
 from .static import FrontendServer, FrontendDevelopmentServer, FrontendManager, create_frontend_config
+from .ws import WebSocket, WebSocketBroadcaster, WebSocketHandler, LiveSessionManager, websocket_route, get_broadcaster, websocket_handshake, is_websocket_upgrade
 
 # Import Rust extensions
 try:
@@ -32,7 +30,8 @@ try:
         sign_cookie, verify_cookie, hash_password, verify_password, generate_random_bytes,
         gzip_compress, gzip_decompress, zstd_compress, zstd_decompress, brotli_compress, brotli_decompress,
         prepare_query, prepare_queries,
-        websocket_accept_key, WebSocketFrame,
+        websocket_accept_key, validate_websocket_frame, get_frame_type,
+        WebSocketFrame, WebSocketManager, WebSocketReceiver,
         render_template as rust_render_template, precompile_template
     )
     HAS_RUST_EXTENSION = True
@@ -64,5 +63,6 @@ __all__ = [
     "RateLimitMiddlewareFactory", "generate_admin_index", "generate_admin_api", "Route", "PathConverter",
     "IntConverter", "FloatConverter", "UUIDConverter", "PathConverterRegistry", "convert_path", "cli",
     "Cache", "get_default_cache", "FrontendServer", "FrontendDevelopmentServer", "FrontendManager", 
-    "create_frontend_config", "HAS_RUST_EXTENSION"
+    "create_frontend_config", "WebSocket", "WebSocketBroadcaster", "WebSocketHandler", "LiveSessionManager",
+    "websocket_route", "get_broadcaster", "websocket_handshake", "is_websocket_upgrade", "HAS_RUST_EXTENSION"
 ]

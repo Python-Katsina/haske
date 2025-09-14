@@ -6,6 +6,7 @@ Provides Haske application, plus integrated frontend dev/prod support:
 - Development: spawn frontend dev server and proxy non-/api routes to it
 """
 
+
 import os
 import time
 import uvicorn
@@ -17,16 +18,20 @@ import threading
 import shlex
 import socket
 from pathlib import Path
-from typing import Any, Callable, Awaitable, Dict, List, Optional
+from typing import Any, Callable, Awaitable, Dict, List, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, HTMLResponse, Response
-from starlette.routing import Route, Mount
+from starlette.routing import Route, Mount, WebSocketRoute
 from starlette.middleware import Middleware as StarletteMiddleware
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException
+from starlette.websockets import WebSocket as StarletteWebSocket
+
+# Import WebSocket utilities
+from .ws import WebSocket, websocket_route as ws_route_decorator, get_broadcaster
 
 # Import Rust router if available
 try:
@@ -141,7 +146,7 @@ def create_reverse_proxy(
 # --------------------------------------------------------------------------
 class Haske:
     """
-    Main Haske application class with integrated frontend support.
+    Main Haske application class with integrated frontend and WebSocket support.
     """
 
     def __init__(
@@ -156,11 +161,12 @@ class Haske:
         self.starlette_app: Optional[Starlette] = None
         self.start_time = time.time()
         self.registered_routes: List[str] = []
+        self.websocket_routes: List[str] = []
 
         self._startup_handlers: List[Callable[..., Awaitable[Any]]] = []
         self._shutdown_handlers: List[Callable[..., Awaitable[Any]]] = []
 
-        # Template/static directories (user-configurable)
+        # Template/static directories
         self.template_dir = template_dir or "templates"
         self.static_dir = static_dir or "static"
 
@@ -177,6 +183,9 @@ class Haske:
         self._frontend_dev_url: Optional[str] = None
         self._frontend_shutdown_cb = None
 
+        # WebSocket broadcaster
+        self._websocket_broadcaster = get_broadcaster()
+
         # DEFAULT MIDDLEWARE - CORS FIRST!
         self.middleware(
             CORSMiddleware,
@@ -188,7 +197,7 @@ class Haske:
         # THEN add other middleware
         self.middleware(GZipMiddleware, minimum_size=500)
 
-        # Auto-register default static mount (if directory exists)
+        # Auto-register default static mount
         try:
             self.static(path="/static", directory=self.static_dir, name="static")
         except Exception:
@@ -219,6 +228,76 @@ class Haske:
         all_mounts = existing_mounts + new_mounts
         self.routes = api_routes + all_mounts
         print(f"[Haske] Route ordering: {len(api_routes)} API routes, {len(all_mounts)} mounts")
+    
+    # Websocket implementations
+
+    def websocket_route(self, path: str, name: str = None) -> Callable:
+        """
+        Decorator for WebSocket routes.
+        
+        Args:
+            path: WebSocket path pattern
+            name: Optional route name
+            
+        Returns:
+            Decorator function
+            
+        Example:
+            @app.websocket_route("/ws/chat")
+            async def chat_websocket(websocket: WebSocket):
+                await websocket.accept()
+                while True:
+                    message = await websocket.receive_text()
+                    await websocket.send_text(f"Echo: {message}")
+        """
+        self.websocket_routes.append(path)
+        
+        def decorator(func: Callable) -> WebSocketRoute:
+            async def websocket_endpoint(websocket: StarletteWebSocket):
+                # Wrap Starlette WebSocket with Haske WebSocket
+                haske_websocket = WebSocket(websocket)
+                await self._websocket_broadcaster.add_connection(haske_websocket)
+                try:
+                    await func(haske_websocket)
+                finally:
+                    await self._websocket_broadcaster.remove_connection(haske_websocket)
+            
+            websocket_route = WebSocketRoute(path, websocket_endpoint, name=name)
+            self.routes.append(websocket_route)
+            return func
+        
+        return decorator
+
+    def websocket(self, path: str, name: str = None) -> Callable:
+        """
+        Alias for websocket_route for Flask-like syntax.
+        
+        Args:
+            path: WebSocket path pattern
+            name: Optional route name
+            
+        Returns:
+            Decorator function
+            
+        Example:
+            @app.websocket("/ws/chat")
+            async def chat_websocket(websocket: WebSocket):
+                # WebSocket handling code
+        """
+        return self.websocket_route(path, name)
+
+    def get_websocket_broadcaster(self):
+        """
+        Get the WebSocket broadcaster instance.
+        
+        Returns:
+            WebSocketBroadcaster: The broadcaster instance
+            
+        Example:
+            broadcaster = app.get_websocket_broadcaster()
+            await broadcaster.broadcast("Hello everyone!", "general")
+        """
+        return self._websocket_broadcaster
 
     # ---------------------------
     # ROUTING (decorator)
