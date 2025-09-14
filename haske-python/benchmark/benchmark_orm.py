@@ -129,9 +129,9 @@ def export_results(stats, fmt, filename):
 def main():
     parser = argparse.ArgumentParser(description="HTTP Benchmark Tool")
     parser.add_argument("--url", type=str, default="http://127.0.0.1:8000/users/1", help="Target URL")
-    parser.add_argument("--requests", type=int, default=1000, help="Total requests")
-    parser.add_argument("--concurrency", type=int, default=50, help="Concurrent workers")
-    parser.add_argument("--timeout", type=float, default=20.0, help="Request timeout in seconds")
+    parser.add_argument("--requests", type=int, default=10000, help="Total requests")
+    parser.add_argument("--concurrency", type=int, default=5000, help="Concurrent workers")
+    parser.add_argument("--timeout", type=float, default=50.0, help="Request timeout in seconds")
     parser.add_argument("--export", type=str, choices=["json", "csv"], help="Export format")
     parser.add_argument("--output", type=str, help="Output file name")
 
