@@ -37,3 +37,7 @@ async def get_user(request):
     if user:
         return {"id": user.id, "name": user.name}
     return JSONResponse({"error": "User not found"}, status_code=404)
+
+
+if __name__=="__main__":
+    app.run(choosen_port=8000)

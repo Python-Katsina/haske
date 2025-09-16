@@ -141,6 +141,16 @@ def create_reverse_proxy(
     ])
 
 
+# Currennt app logic
+_current_app = None
+
+def get_current_app():
+    global _current_app
+    if _current_app is None:
+        raise RuntimeError("No active Haske app. Did you forget to create one?")
+    return _current_app
+
+
 # --------------------------------------------------------------------------
 # Haske application
 # --------------------------------------------------------------------------
@@ -162,6 +172,9 @@ class Haske:
         self.start_time = time.time()
         self.registered_routes: List[str] = []
         self.websocket_routes: List[str] = []
+
+        global _current_app
+        _current_app = self
 
         self._startup_handlers: List[Callable[..., Awaitable[Any]]] = []
         self._shutdown_handlers: List[Callable[..., Awaitable[Any]]] = []
