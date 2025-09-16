@@ -1,5 +1,4 @@
-// PyO3 v0.26 compatible module bootstrap for the Haske core extension
-
+// haske-core/src/lib.rs
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::types::PyModule;
@@ -15,18 +14,21 @@ mod compress;
 mod ws;
 
 use router::HaskeApp;
-
+use ws::{WebSocketFrame, WebSocketManager, WebSocketReceiver};
 
 // PyO3 module initializer for `_haske_core`.
-// Make sure this name matches `lib.name` in Cargo.toml and `module-name` in pyproject.toml.
 #[pymodule]
 fn _haske_core(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
-    // Register classes (assumes router::HaskeApp, cache::HaskeCache, ws::WebSocketFrame are declared with #[pyclass])
+    // Register classes
     m.add_class::<HaskeApp>()?;
     m.add_class::<cache::HaskeCache>()?;
-    m.add_class::<ws::WebSocketFrame>()?;
+    
+    // WebSocket classes
+    m.add_class::<WebSocketFrame>()?;
+    m.add_class::<WebSocketManager>()?;
+    m.add_class::<WebSocketReceiver>()?;
 
-    // Register path functions (assumes #[pyfunction] on these functions)
+    // Register path functions
     m.add_function(wrap_pyfunction!(path::compile_path, m)?)?;
     m.add_function(wrap_pyfunction!(path::match_path, m)?)?;
 
@@ -76,9 +78,14 @@ fn _haske_core(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 
     // WebSocket helpers
     m.add_function(wrap_pyfunction!(ws::websocket_accept_key, m)?)?;
+    m.add_function(wrap_pyfunction!(ws::validate_websocket_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(ws::get_frame_type, m)?)?;
+    m.add_function(wrap_pyfunction!(ws::is_final_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(ws::is_masked_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(ws::get_payload_length, m)?)?;
 
-    // Module metadata (docstring and a boolean flag)
-    m.add("__doc__", "Haske core extension: fast routing, json, templates, crypto, orm helpers.")?;
+    // Module metadata
+    m.add("__doc__", "Haske core extension: fast routing, json, templates, crypto, orm, websocket helpers.")?;
     m.add("HAS_RUST_EXTENSION", true)?;
 
     Ok(())

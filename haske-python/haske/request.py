@@ -170,6 +170,7 @@ class Request:
                 self._form = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(body).items()}
             else:
                 self._form = {}
+        # self._form = dict(self._form)
         return self._form
 
     @property

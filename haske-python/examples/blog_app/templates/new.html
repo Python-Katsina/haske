@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}New Post{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <h2>Create New Post</h2>
+    <form method="POST">
+      <div class="mb-3">
+        <label class="form-label">Title</label>
+        <input type="text" name="title" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Content</label>
+        <textarea name="content" rows="8" class="form-control" required></textarea>
+      </div>
+      <button class="btn btn-success">Publish</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

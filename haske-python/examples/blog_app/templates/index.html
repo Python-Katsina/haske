@@ -1,49 +1,28 @@
-{% extends "base.html" %}
-
-{% block title %}Home - Haske Blog{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Home - My Blog{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <h1 class="mb-4">Latest Posts</h1>
-        
-        {% for post in posts %}
-        <div class="card mb-4">
-            <div class="card-body">
-                <h2 class="card-title">
-                    <a href="/posts/{{ post.id }}" class="text-decoration-none">{{ post.title }}</a>
-                </h2>
-                <p class="text-muted">
-                    Posted on {{ post.created_at.strftime('%B %d, %Y') }}
-                    by {{ post.author_id }} {# In real app, you'd show author name #}
-                </p>
-                <p class="card-text">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
-                <a href="/posts/{{ post.id }}" class="btn btn-primary">Read More</a>
-                <a href="/posts/{{ post.id }}/edit" class="btn btn-secondary">Edit</a>
-                <form action="/posts/{{ post.id }}/delete" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-        
-        {% if not posts %}
-        <div class="alert alert-info">
-            No posts yet. <a href="/posts/create">Create the first post!</a>
-        </div>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Recent Posts</h1>
+    {% if user %}
+      <a href="{{ url_for('new_post') }}" class="btn btn-primary">New Post</a>
+    {% endif %}
+  </div>
+
+  {% for post in posts %}
+    <div class="card post-card">
+      <div class="card-body">
+        <h5 class="card-title">{{ post.title }}</h5>
+        <p class="card-text">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+        <p class="text-muted">By {{ post.user.username }}</p>
+        <a href="{{ url_for('view_post', post_id=post.id) }}" class="btn btn-sm btn-outline-primary">Read More</a>
+        {% if user and user.user_id == post.user_id %}
+          <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm btn-warning">Edit</a>
+          <a href="{{ url_for('delete_post', post_id=post.id) }}" class="btn btn-sm btn-danger">Delete</a>
         {% endif %}
+      </div>
     </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">About</h5>
-                <p class="card-text">
-                    Welcome to our blog built with the Haske framework. 
-                    This is a demonstration of how to build a complete web application with Haske.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
+  {% else %}
+    <p>No posts yet. Be the first to write one!</p>
+  {% endfor %}
 {% endblock %}

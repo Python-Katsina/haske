@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}My Blog{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+    .post-card { margin-bottom: 20px; }
+    .comment { margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; }
+    .sidebar { background-color: #f5f5f5; padding: 15px; border-radius: 5px; }
+    .sidebar h5 { margin-top: 0; }
+    .content-wrapper { display: flex; flex-wrap: wrap; gap: 20px; }
+    @media (min-width: 992px) {
+      .main-content { flex: 0 0 70%; }
+      .sidebar { flex: 0 0 28%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('index') }}">My Blog</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto">
+          {% if user %}
+            <li class="nav-item"><a class="nav-link" href="#">{{ user.username }}</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Register</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4 content-wrapper">
+    <div class="main-content">
+      {% block content %}{% endblock %}
+    </div>
+
+    <aside class="sidebar">
+      {% if user %}
+        <h5>Welcome, {{ user.username }}</h5>
+        <ul class="list-unstyled">
+          <li><a href="{{ url_for('new_post') }}">+ New Post</a></li>
+          <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+      {% endif %}
+
+      <h5>Recent Posts</h5>
+      <ul class="list-unstyled">
+        {% for recent in recent_posts %}
+          <li><a href="{{ url_for('view_post', post_id=recent.id) }}">{{ recent.title|truncate(25) }}</a></li>
+        {% endfor %}
+      </ul>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

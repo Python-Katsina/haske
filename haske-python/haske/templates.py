@@ -12,6 +12,8 @@ import inspect
 from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from haske.routing import get_url
+
 # Try loading Rust-powered template functions
 try:
     from _haske_core import render_template as rust_render_template, precompile_template
@@ -24,7 +26,6 @@ except ImportError:
 _env: Optional[Environment] = None
 _template_dir: str = "templates"
 _static_dir: str = "static"
-
 
 # ---------------------------
 # CONFIGURATION
@@ -68,6 +69,7 @@ def get_env(template_dir: Optional[str] = None, static_dir: Optional[str] = None
 
         # Inject static_url helper
         _env.globals["static_url"] = lambda filename: f"/static/{filename}"
+        _env.globals["url_for"] = get_url
 
         print(f"[Haske] Using templates from: {abs_template}")
         print(f"[Haske] Static files served from: {abs_static}")

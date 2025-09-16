@@ -17,6 +17,38 @@ try:
 except ImportError:
     HAS_RUST_ROUTING = False
 
+
+from urllib.parse import urlencode
+
+def get_url(endpoint, **values):
+    """
+    Flask-like url_for for Haske.
+    Uses endpoint name (function name) to build URL.
+    """
+    from haske.app import get_current_app  # import the global app
+    app = get_current_app()
+
+    for route in getattr(app, "routes", []):
+        # Step 1: Try normal names
+        route_name = getattr(route, "name", None)
+        ep_name = getattr(route.endpoint, "__name__", None)
+
+        # Step 2: Try closure (unwrap decorator)
+        if ep_name == "endpoint" and hasattr(route.endpoint, "__closure__") and route.endpoint.__closure__:
+            for cell in route.endpoint.__closure__:
+                if callable(cell.cell_contents):
+                    ep_name = getattr(cell.cell_contents, "__name__", None) or ep_name
+                    break
+
+        if endpoint in {route_name, ep_name}:
+            url_path = route.path
+            for key, value in values.items():
+                url_path = url_path.replace(f"{{{key}}}", str(value))
+            return url_path
+
+    raise ValueError(f"[Haske get_url] No route found with name '{endpoint}'")
+
+
 class Route(StarletteRoute):
     """
     Haske Route class extending Starlette's Route.
@@ -37,15 +69,15 @@ class Route(StarletteRoute):
             **kwargs: Additional route options
         """
         # Convert path to regex using Rust if available
+        if name is None:
+            name = endpoint.__name__
+
         if HAS_RUST_ROUTING:
             try:
-                # Try to compile with Rust
                 regex_path = compile_path(path)
-                # Use the compiled regex path
                 super().__init__(regex_path, endpoint, methods=methods or ["GET"], name=name, **kwargs)
                 return
             except Exception:
-                # Fall back to Starlette if Rust compilation fails
                 pass
         
         # Fall back to Starlette path handling

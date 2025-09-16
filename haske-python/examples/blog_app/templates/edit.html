@@ -1,28 +1,17 @@
-{% extends "base.html" %}
-
-{% block title %}Edit Post - Haske Blog{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Edit Post{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <h1 class="mb-4">Edit Post</h1>
-        
-        <form method="POST" action="/posts/{{ post.id }}/update">
-            <div class="mb-3">
-                <label for="title" class="form-label">Title</label>
-                <input type="text" class="form-control" id="title" name="title" value="{{ post.title }}" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="content" class="form-label">Content</label>
-                <textarea class="form-control" id="content" name="content" rows="10" required>{{ post.content }}</textarea>
-            </div>
-            
-            <div class="d-grid gap-2 d-md-flex">
-                <button type="submit" class="btn btn-primary">Update Post</button>
-                <a href="/posts/{{ post.id }}" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
-</div>
+<h2>Edit Post</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label class="form-label">Title</label>
+    <input type="text" name="title" class="form-control" value="{{ post.title }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Content</label>
+    <textarea name="content" class="form-control" rows="5" required>{{ post.content }}</textarea>
+  </div>
+  <button class="btn btn-primary">Update</button>
+</form>
 {% endblock %}

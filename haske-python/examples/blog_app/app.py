@@ -1,186 +1,175 @@
-# examples/blog_app/app.py
-from haske import Haske, Request, Response, RedirectResponse
+from haske import Haske, render_template_async, RedirectResponse, url_for, request
 from haske.auth import AuthManager
-from haske.templates import render_template_async
-from models import Post, User
+from haske.orm import AsyncORM
+import bcrypt
+
+from models import User, Post, Comment
 
 app = Haske(__name__)
-auth = AuthManager("your-secret-key-here", session_expiry=3600)
 
-# Create a sample user for demonstration
-def create_sample_user():
-    if not User.get_by_username("admin"):
-        User.create("admin", "admin@example.com", "hashed_password")
+orm = AsyncORM()
 
-# Helper function to check authentication
-def check_auth(request: Request):
-    session = auth.get_session(request)
-    if not session:
-        return False, RedirectResponse('/login')
-    return True, session
+# ==== Auth Manager ====
+auth = AuthManager(secret_key="abc")  # Manual session handling
 
-# Routes
-@app.route("/")
-async def homepage(request: Request):
-    posts = Post.all()
-    return await render_template_async("index.html", posts=posts)
+# ====== initialize and create all database tables
+@app.on_startup
+async def create_db():
+    await orm.init_engine("sqlite+aiosqlite:///blog.db", echo=True)
+    await orm.create_all()
 
+# ========= Index =========
+@app.route("/", methods=["GET"])
+async def index(request):
+    posts = await orm.all(Post)
+    for post in posts:
+        post.user = await orm.get(User, id=post.user_id)
+    posts.sort(key=lambda p: p.id, reverse=True)
+
+    recent_posts = posts[:5]
+    user = auth.get_session(request)
+    return await render_template_async(
+        "index.html", posts=posts, recent_posts=recent_posts, user=user
+    )
+
+# ========= Register =========
+@app.route("/register", methods=["GET", "POST"])
+async def register(request):
+    if request.method == "POST":
+        form = await request.form()
+        username = form.get("username")
+        password = bcrypt.hashpw(form.get("password").encode(), bcrypt.gensalt()).decode()
+        user = User(username=username, password=password, role="author")
+        await orm.add(user)
+        await orm.commit()
+        return RedirectResponse(url_for("login"), status_code=303)
+    return await render_template_async("auth/register.html", user=auth.get_session(request))
+
+# ========= Login =========
 @app.route("/login", methods=["GET", "POST"])
-async def login(request: Request):
-    if request.method == "GET":
-        return await render_template_async("login.html")
-    
-    form_data = await request.form()
-    username = form_data.get("username")
-    password = form_data.get("password")
-    
-    # Simple authentication for demo
-    if username == "admin" and password == "password":
-        user = User.get_by_username(username)
-        if user:
-            response = RedirectResponse("/")
-            auth.create_session(response, user.id, {"username": user.username})
+async def login(request):
+    if request.method == "POST":
+        form = await request.form()
+        user = await orm.get(User, username=form.get("username"))
+        if user and bcrypt.checkpw(form.get("password").encode(), user.password.encode()):
+            response = RedirectResponse(url_for("index"), status_code=303)
+            auth.create_session(response, user.id, {"username": user.username, "roles": [user.role]})
             return response
-    
-    return await render_template_async("login.html", error="Invalid credentials")
+        return await render_template_async("auth/login.html", error="Invalid credentials", user=None)
+    return await render_template_async("auth/login.html", user=auth.get_session(request))
 
+# ========= Logout =========
 @app.route("/logout")
-async def logout(request: Request):
-    response = RedirectResponse("/")
+async def logout(request):
+    response = RedirectResponse(url_for("index"), status_code=303)
     auth.clear_session(response)
     return response
 
-# MOVE SPECIFIC ROUTES BEFORE PARAMETERIZED ROUTES
-@app.route("/posts/create", methods=["GET","POST"])
-async def create_post_form(request: Request):
-    # Check authentication
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return response_or_session
-    return await render_template_async("create.html")
+# ========= New Post =========
+@app.route("/new", methods=["GET", "POST"])
+async def new_post(request):
+    session = auth.get_session(request)
+    if not session:
+        return RedirectResponse(url_for("login"), status_code=303)
 
-@app.route("/posts", methods=["POST"])
-async def create_post(request: Request):
-    # Check authentication
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return response_or_session
-    
-    form_data = await request.form()
-    title = form_data.get("title")
-    content = form_data.get("content")
-    
-    if not title or not content:
-        return await render_template_async("create.html", error="Title and content are required")
-    
-    # For demo, use author_id=1 (admin)
-    post = Post.create(title, content, 1)
-    
-    # Use status code 303 (See Other) for POST redirects
-    return RedirectResponse(f"/posts/{post.id}", status_code=303)
+    if request.method == "POST":
+        form = await request.form()
+        post = Post(
+            title=form.get("title"),
+            content=form.get("content"),
+            user_id=session["user_id"]
+        )
+        await orm.add(post)
+        await orm.commit()
+        return RedirectResponse(url_for("index"), status_code=303)
 
-# Parameterized routes should come after specific routes
-@app.route("/posts/{post_id}", methods=["GET"])
-async def get_post(request: Request):
+    return await render_template_async("new.html", user=session)
+
+# ========= View Post & Comments =========
+@app.route("/post/{post_id}", methods=["GET", "POST"])
+async def view_post(request):
     post_id = int(request.path_params.get("post_id"))
-    post = Post.get(post_id)
-    if not post:
-        return Response("Post not found", status_code=404)
-    return await render_template_async("post.html", post=post)
+    post = await orm.get(Post, id=post_id)
+    post.user = await orm.get(User, id=post.user_id)
 
-@app.route("/posts/{post_id}/edit", methods=["GET"])
-async def edit_post_form(request: Request):
-    # Check authentication
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return response_or_session
-    
+    comments = await orm.filter(Comment, post_id==post_id)
+    for comment in comments:
+        comment.user = await orm.get(User, id=comment.user_id)
+
+    session = auth.get_session(request)
+    recent_posts = (await orm.all(Post))[:5]
+    for recent in recent_posts:
+        recent.user = await orm.get(User, id=recent.user_id)
+
+    if request.method == "POST" and session:
+        form = await request.form()
+        comment = Comment(
+            content=form.get("content"),
+            post_id=post.id,
+            user_id=session["user_id"]
+        )
+        await orm.add(comment)
+        await orm.commit()
+        return RedirectResponse(url_for("view_post", post_id=post.id), status_code=303)
+
+    return await render_template_async(
+        "post.html", post=post, comments=comments, user=session, recent_posts=recent_posts
+    )
+
+# ========= Edit Post =========
+@app.route("/edit/{post_id}", methods=["GET", "POST"])
+async def edit_post(request):
+    session = auth.get_session(request)
+    if not session:
+        return RedirectResponse(url_for("login"), status_code=303)
+
     post_id = int(request.path_params.get("post_id"))
-    post = Post.get(post_id)
-    if not post:
-        return Response("Post not found", status_code=404)
-    return await render_template_async("edit.html", post=post)
+    post = await orm.get(Post, id=post_id)
 
-@app.route("/posts/{post_id}/update", methods=["POST"])
-async def update_post(request: Request):
-    # Check authentication
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return response_or_session
-    
+    if post.user_id != session["user_id"]:
+        return RedirectResponse(url_for("index"), status_code=303)
+
+    if request.method == "POST":
+        form = await request.form()
+        await orm.update(post, title=form.get("title"), content=form.get("content"))
+        await orm.commit()
+        return RedirectResponse(url_for("index"), status_code=303)
+
+    post.user = await orm.get(User, id=post.user_id)
+    return await render_template_async("edit.html", post=post, user=session)
+
+# ========= Delete Post =========
+@app.route("/delete/{post_id}")
+async def delete_post(request):
+    session = auth.get_session(request)
+    if not session:
+        return RedirectResponse(url_for("login"), status_code=303)
+
     post_id = int(request.path_params.get("post_id"))
-    form_data = await request.form()
-    title = form_data.get("title")
-    content = form_data.get("content")
-    
-    post = Post.update(post_id, title, content)
-    if not post:
-        return Response("Post not found", status_code=404)
-    return RedirectResponse(f"/posts/{post.id}")
+    post = await orm.get(Post, id=post_id)
 
-@app.route("/posts/{post_id}/delete", methods=["POST"])
-async def delete_post(request: Request):
-    # Check authentication
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return response_or_session
-    
-    post_id = int(request.path_params.get("post_id"))
-    success = Post.delete(post_id)
-    if not success:
-        return Response("Post not found", status_code=404)
-    return RedirectResponse("/")
+    if post and post.user_id == session["user_id"]:
+        await orm.delete(post)
+        await orm.commit()
 
-# API endpoints
-@app.route("/api/posts", methods=["GET"])
-async def api_get_posts(request: Request):
-    posts = Post.all()
-    return Response.json([{
-        "id": post.id,
-        "title": post.title,
-        "content": post.content,
-        "author_id": post.author_id,
-        "created_at": post.created_at.isoformat(),
-        "updated_at": post.updated_at.isoformat()
-    } for post in posts])
+    return RedirectResponse(url_for("index"), status_code=303)
 
-@app.route("/api/posts/{post_id}", methods=["GET"])
-async def api_get_post(request: Request):
-    post_id = int(request.path_params.get("post_id"))
-    post = Post.get(post_id)
-    if not post:
-        return Response.json({"error": "Post not found"}, status_code=404)
-    return Response.json({
-        "id": post.id,
-        "title": post.title,
-        "content": post.content,
-        "author_id": post.author_id,
-        "created_at": post.created_at.isoformat(),
-        "updated_at": post.updated_at.isoformat()
-    })
+# ========= Delete Comment =========
+@app.route("/delete_comment/{comment_id}")
+async def delete_comment(request):
+    session = auth.get_session(request)
+    if not session:
+        return RedirectResponse(url_for("login"), status_code=303)
 
-@app.route("/api/posts", methods=["POST"])
-async def api_create_post(request: Request):
-    # Check authentication for API
-    is_authenticated, response_or_session = check_auth(request)
-    if not is_authenticated:
-        return Response.json({"error": "Authentication required"}, status_code=401)
-    
-    data = await request.json()
-    post = Post.create(data["title"], data["content"], 1)  # author_id=1 for demo
-    return Response.json({
-        "id": post.id,
-        "title": post.title,
-        "content": post.content,
-        "author_id": post.author_id
-    }, status_code=201)
+    comment_id = int(request.path_params.get("comment_id"))
+    comment = await orm.get(Comment, id=comment_id)
+
+    if comment and comment.user_id == session["user_id"]:
+        await orm.delete(comment)
+        await orm.commit()
+
+    return RedirectResponse(url_for("view_post", post_id=comment.post_id), status_code=303)
+
 
 if __name__ == "__main__":
-    # Create sample user
-    create_sample_user()
-    
-    app.run(
-        host="0.0.0.0", 
-        port=8000, 
-        debug=True
-    )
+    app.run(debug=True)
