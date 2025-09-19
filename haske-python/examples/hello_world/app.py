@@ -7,7 +7,7 @@ data = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
 
 @app.route("/")
 async def homepage(request: Request):
-    return {"message": "Hello, Haske!", "version": "0.1.0"}
+    return {"message": "Hello, Haske!", "version": "0.2.13"}
 
 @app.route("/api/users", methods=["GET"])
 async def get_users(request: Request):
@@ -18,6 +18,12 @@ async def get_user(request: Request):
     user_id = request.path_params.get("id")
     user = next((user for user in data if user["id"] == int(user_id)), None)
     return user
+
+@app.route("/api/usr")
+async def get_username(request):
+    username = request.query_params.get('username')
+    msg = f"Your username is {username}"
+    return msg
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
